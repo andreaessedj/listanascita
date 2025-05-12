@@ -2,18 +2,19 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@3.4.0"; // Importa Resend SDK
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Permetti richieste da qualsiasi origine
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 
-serve(async (req: Request) => {
-  // Gestione OPTIONS per preflight CORS
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders })
+serve(async (req) => {
+  console.log("Edge Function 'send-contribution-notification' invoked."); // Log all'inizio
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Recupera la API key di Resend dai secret di Supabase
+    console.log("Attempting to read RESEND_API_KEY secret..."); // Log prima di leggere il secret
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY non trovata nei secret.");
@@ -22,14 +23,16 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("RESEND_API_KEY secret read successfully."); // Log dopo aver letto il secret
 
     const resend = new Resend(RESEND_API_KEY);
 
-    // Estrai i dati dal corpo della richiesta, inclusi i nuovi campi
+    console.log("Attempting to parse request body..."); // Log prima di leggere il body
     const { productName, contributionAmount, contributorName, contributorSurname, message } = await req.json();
+    console.log("Request body parsed:", { productName, contributionAmount, contributorName, contributorSurname, message }); // Log dopo aver letto il body
 
-    // Validazione minima
     if (!productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname) {
+      console.error("Dati mancanti nel body."); // Log per dati mancanti
       return new Response(JSON.stringify({ error: "Dati mancanti: productName, contributionAmount, contributorName e contributorSurname sono richiesti." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -52,6 +55,7 @@ serve(async (req: Request) => {
       <p><em>Questo è un messaggio automatico.</em></p>
     `;
 
+    console.log("Attempting to send email via Resend..."); // Log prima di inviare l'email
     const { data, error } = await resend.emails.send({
       from: senderEmail,
       to: recipientEmail,
@@ -60,21 +64,21 @@ serve(async (req: Request) => {
     });
 
     if (error) {
-      console.error("Errore invio email con Resend:", error);
+      console.error("Errore invio email con Resend:", error); // Log errore Resend
       return new Response(JSON.stringify({ error: "Errore durante l'invio dell'email." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("Email inviata con successo:", data);
+    console.log("Email inviata con successo:", data); // Log successo invio
     return new Response(JSON.stringify({ message: "Notifica inviata con successo!", emailId: data?.id }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (e) {
-    console.error("Errore generico nella Edge Function:", e);
+    console.error("Errore generico nella Edge Function:", e); // Log errore generico
     return new Response(JSON.stringify({ error: e.message || "Errore interno del server." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

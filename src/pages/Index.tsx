@@ -148,7 +148,7 @@ const Index = () => {
         )
       );
       showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
-      handleCloseContributeModal();
+      handleCloseContributionModal();
 
       // Rimosso codice attivazione confetti
       /*
@@ -160,6 +160,7 @@ const Index = () => {
       */
 
       // Chiama la Edge Function, passando i nuovi dati
+      console.log("Tentativo di chiamare la Edge Function per la notifica email..."); // Log prima della chiamata
       try {
         const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
           body: {
@@ -170,10 +171,13 @@ const Index = () => {
             message: message, // Passa il messaggio
           },
         });
-        if (functionError) console.error('Errore chiamata Edge Function:', functionError);
-        else console.log('Notifica email inviata (o tentativo).');
+        if (functionError) {
+          console.error('Errore chiamata Edge Function:', functionError); // Log in caso di errore nella chiamata
+        } else {
+          console.log('Chiamata Edge Function completata (verifica i log di Supabase per l\'invio email).'); // Log successo chiamata
+        }
       } catch (invokeError) {
-        console.error('Errore imprevisto chiamata Edge Function:', invokeError);
+        console.error('Errore imprevisto durante la chiamata Edge Function:', invokeError); // Log per errori imprevisti
       }
 
     } catch (err: any) {
@@ -310,7 +314,7 @@ const Index = () => {
 
       <ContributionModal
         isOpen={contributionModalState.isOpen}
-        onClose={handleCloseContributeModal}
+        onClose={handleCloseContributionModal}
         product={contributionModalState.product}
         paymentMethod={contributionModalState.paymentMethod}
         onConfirmContribution={handleConfirmContribution}
