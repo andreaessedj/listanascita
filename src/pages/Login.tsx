@@ -1,26 +1,21 @@
 import { useEffect } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/integrations/supabase/client';
-// Modifica: Importa useUser invece di useSession
-import { useUser, useSupabaseClient } from '@supabase/auth-ui-react';
+import { supabase } from '@/integrations/supabase/client'; // Importa l'istanza supabase
+import { useUser } from '@supabase/auth-ui-react'; // useSupabaseClient rimosso
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Login = () => {
-  const user = useUser(); // Modifica: Usa useUser()
-  const supabaseClient = useSupabaseClient();
+  const user = useUser();
   const navigate = useNavigate();
+  // Non usiamo più useSupabaseClient, quindi non c'è bisogno di controllare supabaseClient
 
   useEffect(() => {
-    if (user) { // Modifica: Controlla user invece di session
+    if (user) {
       navigate('/admin');
     }
-  }, [user, navigate]); // Modifica: Dipendenza user invece di session
-
-  if (!supabaseClient) {
-    return <div>Caricamento...</div>;
-  }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 p-4">
@@ -32,7 +27,7 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           <Auth
-            supabaseClient={supabaseClient}
+            supabaseClient={supabase} // Passa l'istanza supabase importata direttamente
             appearance={{ theme: ThemeSupa }}
             providers={[]}
             theme="light"
