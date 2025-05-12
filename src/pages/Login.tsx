@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Auth, ThemeSupa } from '@supabase/auth-ui-react';
+import { Auth } from '@supabase/auth-ui-react'; // Auth viene da qui
+import { ThemeSupa } from '@supabase/auth-ui-shared'; // ThemeSupa viene da qui
 import { supabase } from '@/integrations/supabase/client';
 import { useSession, useSupabaseClient } from '@supabase/auth-ui-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,18 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Login = () => {
   const session = useSession();
-  const supabaseClient = useSupabaseClient(); // Usa questo hook per ottenere il client nel contesto Auth
+  const supabaseClient = useSupabaseClient();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (session) {
-      navigate('/admin'); // Reindirizza all'admin se già loggato
+      navigate('/admin');
     }
   }, [session, navigate]);
 
-  // Assicurati che supabaseClient sia disponibile prima di renderizzare Auth
   if (!supabaseClient) {
-    return <div>Caricamento...</div>; // O uno skeleton/spinner
+    return <div>Caricamento...</div>;
   }
 
   return (
@@ -31,10 +31,10 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           <Auth
-            supabaseClient={supabaseClient} // Usa il client dal contesto
-            appearance={{ theme: ThemeSupa }}
-            providers={[]} // Nessun provider social per ora
-            theme="light" // Puoi cambiarlo in "dark" se preferisci
+            supabaseClient={supabaseClient}
+            appearance={{ theme: ThemeSupa }} // Ora ThemeSupa è importato correttamente
+            providers={[]}
+            theme="light"
             localization={{
               variables: {
                 sign_in: {
