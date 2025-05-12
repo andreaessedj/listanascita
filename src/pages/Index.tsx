@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo } from 'react'; // Aggiunto useMemo
+import { useEffect, useState, useMemo } from 'react';
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
 import { Product } from '@/types/product';
-import { Baby, Heart, ArrowDownUp, Filter } from 'lucide-react'; // Aggiunte icone
+import { Baby, Heart, ArrowDownUp, Filter } from 'lucide-react';
 import { showSuccess, showError as showErrorToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,7 +36,6 @@ const Index = () => {
     product: Product | null;
   }>({ isOpen: false, product: null });
 
-  // Stati per l'ordinamento
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -58,7 +57,7 @@ const Index = () => {
         const { data, error: supabaseError } = await supabase
           .from('products')
           .select('*, image_urls')
-          .order('created_at', { ascending: false }); // Default sort by creation date
+          .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
 
@@ -72,7 +71,7 @@ const Index = () => {
           contributedAmount: item.contributed_amount,
           category: item.category,
           originalUrl: item.original_url,
-          createdAt: item.created_at, // Assicurati di avere created_at per l'ordinamento
+          createdAt: item.created_at,
         })) || [];
         setProducts(formattedProducts);
 
@@ -84,7 +83,6 @@ const Index = () => {
         setLoading(false);
       }
     };
-
     fetchProducts();
   }, []);
 
@@ -94,34 +92,61 @@ const Index = () => {
   const handleCloseContributeModal = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
+
   const handleConfirmContribution = async (productId: string, amount: number) => {
-     const currentProduct = products.find(p => p.id === productId);
+    const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
       throw new Error("Product not found");
     }
     const newContributedAmount = Math.round((currentProduct.contributedAmount + amount) * 100) / 100;
-    const { error: updateError } = await supabase
-      .from('products')
-      .update({ contributed_amount: newContributedAmount })
-      .match({ id: productId });
 
-    if (updateError) {
-      console.error("Errore aggiornamento Supabase:", updateError);
-      showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      throw updateError;
+    try {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ contributed_amount: newContributedAmount })
+        .match({ id: productId });
+
+      if (updateError) {
+        console.error("Errore aggiornamento Supabase:", updateError);
+        showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
+        throw updateError;
+      }
+
+      setProducts(prevProducts =>
+        prevProducts.map(p =>
+          p.id === productId
+            ? { ...p, contributedAmount: newContributedAmount }
+            : p
+        )
+      );
+      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
+      handleCloseContributeModal();
+
+      // Chiama la Edge Function per inviare la notifica
+      try {
+        const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
+          body: {
+            productName: currentProduct.name,
+            contributionAmount: amount,
+            // Potremmo aggiungere campi per nome/email del donatore se li raccogliessimo
+          },
+        });
+        if (functionError) {
+          console.error('Errore chiamata Edge Function:', functionError);
+          // Non mostrare un errore all'utente per questo, è una notifica interna
+        } else {
+          console.log('Notifica email inviata (o tentativo) tramite Edge Function.');
+        }
+      } catch (invokeError) {
+        console.error('Errore imprevisto chiamata Edge Function:', invokeError);
+      }
+
+    } catch (err) {
+      // L'errore di update è già gestito sopra, questo è per altri errori imprevisti
+      console.error("Errore imprevisto in handleConfirmContribution:", err);
+      // Non è necessario mostrare un altro toast se quello di update è già stato mostrato
     }
-    // Aggiorna lo stato dei prodotti per riflettere il cambiamento
-    // Questo è importante perché sortedProducts dipende da `products`
-    setProducts(prevProducts =>
-      prevProducts.map(p =>
-        p.id === productId
-          ? { ...p, contributedAmount: newContributedAmount }
-          : p
-      )
-    );
-    showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
-    handleCloseContributeModal();
   };
 
   const handleOpenDetailModal = (product: Product) => {
@@ -131,7 +156,6 @@ const Index = () => {
     setDetailModalState({ isOpen: false, product: null });
   };
 
-  // Logica di ordinamento
   const sortedProducts = useMemo(() => {
     let tempProducts = [...products];
     tempProducts.sort((a, b) => {
@@ -141,15 +165,12 @@ const Index = () => {
       } else if (sortCriteria === 'price') {
         comparison = a.price - b.price;
       } else if (sortCriteria === 'createdAt') {
-        // createdAt potrebbe essere stringa, converti in Date per confronto sicuro
         comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       }
-
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     return tempProducts;
   }, [products, sortCriteria, sortDirection]);
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700">
