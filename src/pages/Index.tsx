@@ -1,14 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react'; // Aggiunto useMemo
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
-import ProductDetailModal from '@/components/ProductDetailModal'; // Importa il modale dettagli
+import ProductDetailModal from '@/components/ProductDetailModal';
 import { Product } from '@/types/product';
-import { Baby, Heart } from 'lucide-react';
+import { Baby, Heart, ArrowDownUp, Filter } from 'lucide-react'; // Aggiunte icone
 import { showSuccess, showError as showErrorToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
+type SortCriteria = 'name' | 'price' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -20,11 +31,14 @@ const Index = () => {
     paymentMethod: PaymentMethod | null;
   }>({ isOpen: false, product: null, paymentMethod: null });
 
-  // Stato per il modale dei dettagli
   const [detailModalState, setDetailModalState] = useState<{
     isOpen: boolean;
     product: Product | null;
   }>({ isOpen: false, product: null });
+
+  // Stati per l'ordinamento
+  const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -41,11 +55,10 @@ const Index = () => {
       setLoading(true);
       setError(null);
       try {
-        // Assicurati di selezionare image_urls
         const { data, error: supabaseError } = await supabase
           .from('products')
-          .select('*, image_urls') // Seleziona anche image_urls
-          .order('created_at', { ascending: false });
+          .select('*, image_urls')
+          .order('created_at', { ascending: false }); // Default sort by creation date
 
         if (supabaseError) throw supabaseError;
 
@@ -55,10 +68,11 @@ const Index = () => {
           description: item.description,
           price: item.price,
           imageUrl: item.image_url,
-          imageUrls: item.image_urls || [], // Assicurati che sia un array
+          imageUrls: item.image_urls || [],
           contributedAmount: item.contributed_amount,
           category: item.category,
-          originalUrl: item.original_url
+          originalUrl: item.original_url,
+          createdAt: item.created_at, // Assicurati di avere created_at per l'ordinamento
         })) || [];
         setProducts(formattedProducts);
 
@@ -74,7 +88,6 @@ const Index = () => {
     fetchProducts();
   }, []);
 
-  // Funzioni per il modale di contribuzione
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
     setContributionModalState({ isOpen: true, product, paymentMethod: method });
   };
@@ -82,7 +95,6 @@ const Index = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
   const handleConfirmContribution = async (productId: string, amount: number) => {
-    // ... (logica invariata) ...
      const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
@@ -99,6 +111,8 @@ const Index = () => {
       showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
       throw updateError;
     }
+    // Aggiorna lo stato dei prodotti per riflettere il cambiamento
+    // Questo è importante perché sortedProducts dipende da `products`
     setProducts(prevProducts =>
       prevProducts.map(p =>
         p.id === productId
@@ -110,7 +124,6 @@ const Index = () => {
     handleCloseContributeModal();
   };
 
-  // Funzioni per il modale dei dettagli
   const handleOpenDetailModal = (product: Product) => {
     setDetailModalState({ isOpen: true, product });
   };
@@ -118,10 +131,29 @@ const Index = () => {
     setDetailModalState({ isOpen: false, product: null });
   };
 
+  // Logica di ordinamento
+  const sortedProducts = useMemo(() => {
+    let tempProducts = [...products];
+    tempProducts.sort((a, b) => {
+      let comparison = 0;
+      if (sortCriteria === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortCriteria === 'price') {
+        comparison = a.price - b.price;
+      } else if (sortCriteria === 'createdAt') {
+        // createdAt potrebbe essere stringa, converti in Date per confronto sicuro
+        comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return tempProducts;
+  }, [products, sortCriteria, sortDirection]);
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700">
       <header className="py-8 text-center">
-        {/* ... (header invariato) ... */}
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
@@ -138,8 +170,29 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <h2 className="text-3xl font-semibold text-center mb-10 text-gray-700">La Nostra Lista Nascita</h2>
-        {/* ... (gestione loading/error invariata) ... */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
+          <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="sort-criteria" className="text-sm font-medium">Ordina per:</Label>
+              <Select value={sortCriteria} onValueChange={(value) => setSortCriteria(value as SortCriteria)}>
+                <SelectTrigger id="sort-criteria" className="w-[150px] bg-white/80">
+                  <SelectValue placeholder="Criterio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt">Più Recenti</SelectItem>
+                  <SelectItem value="name">Nome</SelectItem>
+                  <SelectItem value="price">Prezzo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')} className="bg-white/80">
+              <ArrowDownUp className="h-4 w-4 mr-2" />
+              {sortDirection === 'asc' ? 'Cresc.' : 'Decr.'}
+            </Button>
+          </div>
+        </div>
+
          {loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(3)].map((_, index) => (
@@ -158,14 +211,14 @@ const Index = () => {
         {!loading && !error && products.length === 0 && (
           <p className="text-center text-gray-500">Nessun prodotto nella lista al momento.</p>
         )}
-        {!loading && !error && products.length > 0 && (
+        {!loading && !error && sortedProducts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
+            {sortedProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 onOpenContributeModal={handleOpenContributeModal}
-                onOpenDetailModal={handleOpenDetailModal} // Passa la nuova funzione
+                onOpenDetailModal={handleOpenDetailModal}
               />
             ))}
           </div>
@@ -176,7 +229,6 @@ const Index = () => {
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
       </footer>
 
-      {/* Renderizza i modali */}
       <ContributionModal
         isOpen={contributionModalState.isOpen}
         onClose={handleCloseContributeModal}
