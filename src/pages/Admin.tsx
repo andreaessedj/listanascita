@@ -1,42 +1,59 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client'; // Importa il client direttamente
-// Rimuovi useSupabaseClient
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+// Rimosso useNavigate
 
 const Admin = () => {
-  // Rimuovi supabaseClient = useSupabaseClient();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>([]); // Stato per i prodotti
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Qui caricheremo i prodotti
-    console.log("Pagina Admin caricata");
-    setLoading(false);
-  }, []);
+  // Funzione per caricare i prodotti
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const handleLogout = async () => {
-    // Usa l'istanza supabase importata
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Errore durante il logout:', error);
-    } else {
-      navigate('/login'); // Reindirizza al login dopo il logout
+      if (supabaseError) {
+        throw supabaseError;
+      }
+      setProducts(data || []);
+    } catch (err: any) {
+      console.error("Errore caricamento prodotti (Admin):", err);
+      setError("Impossibile caricare i prodotti.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchProducts(); // Carica i prodotti al mount
+  }, []);
+
+  // Rimuovi handleLogout
+
   if (loading) {
     return <div>Caricamento area admin...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-center p-4">{error}</div>;
   }
 
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Gestione Lista Nascita</h1>
-        <Button onClick={handleLogout} variant="outline">Logout</Button>
+        {/* Aggiungeremo qui il pulsante "Aggiungi Prodotto" */}
+        <Button>Aggiungi Prodotto (WIP)</Button>
       </div>
-      <p>Contenuto della pagina di amministrazione (in costruzione)...</p>
-      {/* Qui aggiungeremo la tabella e i form per i prodotti */}
+      <p>Elenco prodotti:</p>
+      {/* Qui aggiungeremo la tabella dei prodotti */}
+      <pre>{JSON.stringify(products, null, 2)}</pre> {/* Placeholder per vedere i dati */}
     </div>
   );
 };
