@@ -46,7 +46,19 @@ const ContributionModal = ({
   const [error, setError] = useState<string | null>(null);
 
   // Early return se non ci sono prodotto o metodo (necessario prima di accedere a product.id)
-  if (!product || !paymentMethod) return null;
+  if (!isOpen || !product || !paymentMethod) { // Aggiunto !isOpen al check iniziale
+      // Resetta lo stato interno quando il modale si chiude
+      if (!isOpen) {
+        setAmount('');
+        setContributorName('');
+        setContributorSurname('');
+        setMessage('');
+        setError(null);
+        setIsLoading(false);
+      }
+      return null;
+  }
+
 
   const remainingAmount = product.price - product.contributedAmount;
   const calculatedRemaining = Math.max(0, remainingAmount);
@@ -155,21 +167,10 @@ const ContributionModal = ({
     }
   };
 
-  // Reset state when modal opens with a new product/method
-  // Usiamo useEffect con la key sul DialogContent per forzare il reset
-  useEffect(() => {
-    if (isOpen) {
-      setAmount('');
-      setContributorName(''); // Resetta anche i nuovi campi
-      setContributorSurname('');
-      setMessage('');
-      setError(null);
-      setIsLoading(false);
-    }
-  }, [isOpen, product, paymentMethod]); // Dipendenze corrette
-
+  // Rimosso useEffect per il reset dello stato, gestito nell'early return
 
   return (
+    // Riscritto il blocco return per massima pulizia
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       {/* Aggiunta key a DialogContent per forzare il remount e resettare lo stato */}
       <DialogContent key={product.id + '-' + paymentMethod} className="sm:max-w-[480px]">
@@ -254,7 +255,7 @@ const ContributionModal = ({
                <AlertTitle>Completato!</AlertTitle>
                <AlertDescription>
                  Questo regalo è già stato completato. Grazie a tutti!
-               </Alertcription>
+               </AlertDescription>
              </Alert>
           ) : (
             getPaymentInstructions()
