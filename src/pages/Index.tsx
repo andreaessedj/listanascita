@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ProductCard from '@/components/ProductCard';
-import ContributionModal from '@/components/ContributionModal'; // Importa il modale
+import ContributionModal from '@/components/ContributionModal';
+import ProductDetailModal from '@/components/ProductDetailModal'; // Importa il modale dettagli
 import { Product } from '@/types/product';
 import { Baby, Heart } from 'lucide-react';
 import { showSuccess, showError as showErrorToast } from '@/utils/toast';
@@ -13,20 +14,25 @@ const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<{
+  const [contributionModalState, setContributionModalState] = useState<{
     isOpen: boolean;
     product: Product | null;
     paymentMethod: PaymentMethod | null;
   }>({ isOpen: false, product: null, paymentMethod: null });
 
-  // Dettagli di pagamento forniti dall'utente
+  // Stato per il modale dei dettagli
+  const [detailModalState, setDetailModalState] = useState<{
+    isOpen: boolean;
+    product: Product | null;
+  }>({ isOpen: false, product: null });
+
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
     satispay: 'Andrea Savarese / 3496683055',
     transfer: {
       iban: 'IT05T0347501605CC0011883024',
       holder: 'Andrea Savarese e Ilaria Beatrice Leoncino',
-      reason: 'Lista Nascita', // Il nome del prodotto verrà aggiunto nel modale
+      reason: 'Lista Nascita',
     },
   };
 
@@ -35,14 +41,13 @@ const Index = () => {
       setLoading(true);
       setError(null);
       try {
+        // Assicurati di selezionare image_urls
         const { data, error: supabaseError } = await supabase
           .from('products')
-          .select('*')
+          .select('*, image_urls') // Seleziona anche image_urls
           .order('created_at', { ascending: false });
 
-        if (supabaseError) {
-          throw supabaseError;
-        }
+        if (supabaseError) throw supabaseError;
 
         const formattedProducts = data?.map(item => ({
           id: item.id,
@@ -50,8 +55,10 @@ const Index = () => {
           description: item.description,
           price: item.price,
           imageUrl: item.image_url,
+          imageUrls: item.image_urls || [], // Assicurati che sia un array
           contributedAmount: item.contributed_amount,
           category: item.category,
+          originalUrl: item.original_url
         })) || [];
         setProducts(formattedProducts);
 
@@ -67,26 +74,21 @@ const Index = () => {
     fetchProducts();
   }, []);
 
+  // Funzioni per il modale di contribuzione
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
-    setModalState({ isOpen: true, product, paymentMethod: method });
+    setContributionModalState({ isOpen: true, product, paymentMethod: method });
   };
-
   const handleCloseContributeModal = () => {
-    setModalState({ isOpen: false, product: null, paymentMethod: null });
+    setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
-
   const handleConfirmContribution = async (productId: string, amount: number) => {
-    const currentProduct = products.find(p => p.id === productId);
+    // ... (logica invariata) ...
+     const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
       throw new Error("Product not found");
     }
-
-    // Calcola il nuovo importo contribuito
-    // Usiamo Math.round per evitare potenziali problemi con floating point
     const newContributedAmount = Math.round((currentProduct.contributedAmount + amount) * 100) / 100;
-
-    // Aggiorna Supabase
     const { error: updateError } = await supabase
       .from('products')
       .update({ contributed_amount: newContributedAmount })
@@ -95,10 +97,8 @@ const Index = () => {
     if (updateError) {
       console.error("Errore aggiornamento Supabase:", updateError);
       showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      throw updateError; // Propaga l'errore al modale per mantenere aperto
+      throw updateError;
     }
-
-    // Aggiorna lo stato locale per un feedback immediato
     setProducts(prevProducts =>
       prevProducts.map(p =>
         p.id === productId
@@ -106,16 +106,22 @@ const Index = () => {
           : p
       )
     );
-
     showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
-    handleCloseContributeModal(); // Chiudi il modale in caso di successo
+    handleCloseContributeModal();
   };
 
+  // Funzioni per il modale dei dettagli
+  const handleOpenDetailModal = (product: Product) => {
+    setDetailModalState({ isOpen: true, product });
+  };
+  const handleCloseDetailModal = () => {
+    setDetailModalState({ isOpen: false, product: null });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700">
       <header className="py-8 text-center">
-        {/* Header content... (invariato) */}
+        {/* ... (header invariato) ... */}
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
@@ -133,7 +139,8 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-8">
         <h2 className="text-3xl font-semibold text-center mb-10 text-gray-700">La Nostra Lista Nascita</h2>
-        {loading && (
+        {/* ... (gestione loading/error invariata) ... */}
+         {loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(3)].map((_, index) => (
               <div key={index} className="flex flex-col space-y-3">
@@ -157,7 +164,8 @@ const Index = () => {
               <ProductCard
                 key={product.id}
                 product={product}
-                onOpenContributeModal={handleOpenContributeModal} // Passa la funzione per aprire il modale
+                onOpenContributeModal={handleOpenContributeModal}
+                onOpenDetailModal={handleOpenDetailModal} // Passa la nuova funzione
               />
             ))}
           </div>
@@ -168,14 +176,19 @@ const Index = () => {
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
       </footer>
 
-      {/* Renderizza il modale */}
+      {/* Renderizza i modali */}
       <ContributionModal
-        isOpen={modalState.isOpen}
+        isOpen={contributionModalState.isOpen}
         onClose={handleCloseContributeModal}
-        product={modalState.product}
-        paymentMethod={modalState.paymentMethod}
-        onConfirmContribution={handleConfirmContribution} // Passa la funzione di conferma
-        paymentDetails={paymentDetails} // Passa i dettagli di pagamento
+        product={contributionModalState.product}
+        paymentMethod={contributionModalState.paymentMethod}
+        onConfirmContribution={handleConfirmContribution}
+        paymentDetails={paymentDetails}
+      />
+      <ProductDetailModal
+        isOpen={detailModalState.isOpen}
+        onClose={handleCloseDetailModal}
+        product={detailModalState.product}
       />
     </div>
   );

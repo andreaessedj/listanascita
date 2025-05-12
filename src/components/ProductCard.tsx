@@ -1,37 +1,55 @@
-import { useState } from 'react';
 import { Product } from '@/types/product';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Banknote, CreditCard, Gift } from 'lucide-react';
+import { Banknote, CreditCard, Gift, Camera } from 'lucide-react'; // Aggiunta Camera
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 
 interface ProductCardProps {
   product: Product;
-  onOpenContributeModal: (product: Product, method: PaymentMethod) => void; // Callback to open modal
+  onOpenContributeModal: (product: Product, method: PaymentMethod) => void;
+  onOpenDetailModal: (product: Product) => void; // Callback per aprire modale dettagli
 }
 
-const ProductCard = ({ product, onOpenContributeModal }: ProductCardProps) => {
+const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: ProductCardProps) => {
   const progressPercentage = product.price > 0 ? (product.contributedAmount / product.price) * 100 : 0;
+  const hasMultipleImages = product.imageUrls && product.imageUrls.length > 1;
 
   const handleContributeClick = (method: PaymentMethod) => {
     onOpenContributeModal(product, method);
   };
 
+  const handleDetailClick = () => {
+    onOpenDetailModal(product);
+  };
+
   return (
     <Card className="w-full max-w-sm shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-      <CardHeader className="p-4">
-        <div className="aspect-square w-full bg-gray-100 rounded-md mb-4 overflow-hidden">
-          <img
-            src={product.imageUrl || "https://via.placeholder.com/300x300?text=Prodotto"}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <CardTitle className="text-xl font-semibold text-gray-800">{product.name}</CardTitle>
-        {product.description && <CardDescription className="text-sm text-gray-600 h-10 overflow-hidden">{product.description}</CardDescription>}
-      </CardHeader>
+      {/* Area cliccabile per dettagli */}
+      <div onClick={handleDetailClick} className="cursor-pointer">
+        <CardHeader className="p-4 relative"> {/* Aggiunto relative per posizionare l'icona */}
+          <div className="aspect-square w-full bg-gray-100 rounded-md mb-4 overflow-hidden relative">
+            <img
+              src={product.imageUrl || "https://via.placeholder.com/300x300?text=Prodotto"}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+            {/* Indicatore immagini multiple */}
+            {hasMultipleImages && (
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white p-1 rounded-full flex items-center text-xs">
+                <Camera className="h-3 w-3 mr-1" />
+                <span>{product.imageUrls?.length}</span>
+              </div>
+            )}
+          </div>
+          <CardTitle className="text-xl font-semibold text-gray-800">{product.name}</CardTitle>
+          {/* Descrizione troncata qui */}
+          {product.description && <CardDescription className="text-sm text-gray-600 h-10 overflow-hidden">{product.description}</CardDescription>}
+        </CardHeader>
+      </div>
+
+      {/* Contenuto e Footer rimangono separati dall'area cliccabile per dettagli */}
       <CardContent className="p-4 flex-grow">
         <div className="mb-2">
           <div className="flex justify-between items-center mb-1">
