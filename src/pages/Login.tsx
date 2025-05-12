@@ -1,21 +1,22 @@
 import { useEffect } from 'react';
-import { Auth } from '@supabase/auth-ui-react'; // Auth viene da qui
-import { ThemeSupa } from '@supabase/auth-ui-shared'; // ThemeSupa viene da qui
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { useSession, useSupabaseClient } from '@supabase/auth-ui-react';
+// Modifica: Importa useUser invece di useSession
+import { useUser, useSupabaseClient } from '@supabase/auth-ui-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Login = () => {
-  const session = useSession();
+  const user = useUser(); // Modifica: Usa useUser()
   const supabaseClient = useSupabaseClient();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (session) {
+    if (user) { // Modifica: Controlla user invece di session
       navigate('/admin');
     }
-  }, [session, navigate]);
+  }, [user, navigate]); // Modifica: Dipendenza user invece di session
 
   if (!supabaseClient) {
     return <div>Caricamento...</div>;
@@ -32,7 +33,7 @@ const Login = () => {
         <CardContent>
           <Auth
             supabaseClient={supabaseClient}
-            appearance={{ theme: ThemeSupa }} // Ora ThemeSupa è importato correttamente
+            appearance={{ theme: ThemeSupa }}
             providers={[]}
             theme="light"
             localization={{
