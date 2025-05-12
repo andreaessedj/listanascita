@@ -114,18 +114,16 @@
 }
 
 .animate-gradient {
-  background-size: 200% 200%; /* Raddoppia la dimensione per permettere il movimento */
-  animation: gradient-animation 15s ease infinite; /* Applica l'animazione */
+  background-size: 400% 400%; /* Aumentato da 200% per un movimento più ampio */
+  animation: gradient-animation 15s ease infinite;
 }
 
 /* Effetto Hover sul Logo (testo sfumato) */
 .logo-gradient-hover {
-  /* Le classi Tailwind bg-clip-text e text-transparent sono già applicate */
-  /* Definiamo un background-size più grande per l'effetto hover */
   background-size: 200% auto;
-  transition: background-position 0.5s ease-in-out; /* Animazione per il cambio posizione */
+  transition: background-position 0.5s ease-in-out;
 }
 
 .logo-gradient-hover:hover {
-  background-position: right center; /* Sposta la posizione dello sfondo al passaggio del mouse */
+  background-position: right center;
 }
