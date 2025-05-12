@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Importa useEffect
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ interface ContributionModalProps {
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
   onConfirmContribution: (productId: string, amount: number) => Promise<void>;
-  paymentDetails: { // Placeholder for payment details - TO BE FILLED BY USER
+  paymentDetails: {
     paypal: string;
     satispay: string;
     transfer: { iban: string; holder: string; reason: string };
@@ -34,7 +34,7 @@ const ContributionModal = ({
   product,
   paymentMethod,
   onConfirmContribution,
-  paymentDetails, // User details will be passed here
+  paymentDetails,
 }: ContributionModalProps) => {
   const [amount, setAmount] = useState<number | string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,15 +43,16 @@ const ContributionModal = ({
   if (!product || !paymentMethod) return null;
 
   const remainingAmount = product.price - product.contributedAmount;
-  const maxContribution = remainingAmount > 0 ? remainingAmount : product.price; // Allow contributing full price if already met? Or just remaining? Let's stick to remaining.
+  // Ensure remainingAmount is not negative if contribution exceeds price slightly due to rounding
+  const calculatedRemaining = Math.max(0, remainingAmount);
+  const maxContribution = calculatedRemaining > 0 ? calculatedRemaining : product.price;
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow empty string or valid number, potentially with decimals
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
-       // Prevent entering amount greater than remaining
        const numericValue = parseFloat(value);
        if (!isNaN(numericValue) && numericValue > maxContribution) {
+         // Set to max contribution, ensuring 2 decimal places
          setAmount(maxContribution.toFixed(2));
        } else {
          setAmount(value);
@@ -61,24 +62,26 @@ const ContributionModal = ({
 
   const handleConfirm = async () => {
     const contributionAmount = parseFloat(amount.toString());
-    if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > maxContribution) {
-      setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
-      return;
+    // Use a small epsilon for floating point comparison
+    const epsilon = 0.001;
+    if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > maxContribution + epsilon) {
+       setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
+       return;
     }
     setError(null);
     setIsLoading(true);
     try {
+      // Pass the validated, parsed amount
       await onConfirmContribution(product.id, contributionAmount);
-      // Success handled by parent (toast, close modal)
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
       setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      setIsLoading(false); // Keep modal open on error
+      setIsLoading(false);
     }
-    // No need to set isLoading false here if success closes the modal
   };
 
   const getPaymentInstructions = () => {
+    // ... (codice istruzioni invariato) ...
     switch (paymentMethod) {
       case 'paypal':
         return (
@@ -143,14 +146,14 @@ const ContributionModal = ({
   };
 
   // Reset state when modal opens with a new product/method
-  useState(() => {
+  // CORREZIONE: Usare useEffect invece di useState qui
+  useEffect(() => {
     if (isOpen) {
       setAmount('');
       setError(null);
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, product, paymentMethod]);
+  }, [isOpen, product, paymentMethod]); // Dipendenze corrette
 
 
   return (
@@ -161,7 +164,7 @@ const ContributionModal = ({
           <DialogDescription>
             Prezzo totale: {product.price.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}.
             Già contribuito: {product.contributedAmount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}.
-            <span className="font-semibold"> Restano: {remainingAmount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>.
+            <span className="font-semibold"> Restano: {calculatedRemaining.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -174,19 +177,32 @@ const ContributionModal = ({
               type="number"
               step="0.01"
               min="0.01"
-              max={maxContribution.toFixed(2)}
+              max={maxContribution.toFixed(2)} // Usa toFixed per il valore max nell'input
               value={amount}
               onChange={handleAmountChange}
               className="col-span-3"
               placeholder={`Max ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`}
+              disabled={calculatedRemaining <= 0} // Disabilita se l'importo è già stato raggiunto
             />
           </div>
           {error && <p className="text-sm text-red-600 text-center col-span-4">{error}</p>}
 
-          {getPaymentInstructions()}
+          {/* Disabilita le istruzioni e il form se il prodotto è completo */}
+          {calculatedRemaining <= 0 ? (
+             <Alert variant="default" className="bg-green-50 border-green-200 text-green-700">
+               <Terminal className="h-4 w-4" />
+               <AlertTitle>Completato!</AlertTitle>
+               <AlertDescription>
+                 Questo regalo è già stato completato. Grazie a tutti!
+               </AlertDescription>
+             </Alert>
+          ) : (
+            getPaymentInstructions()
+          )}
+
 
            <p className="text-xs text-gray-500 mt-2 text-center">
-             Dopo aver cliccato "Conferma Contributo", procedi con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto.
+             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", procedi con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto."}
            </p>
         </div>
         <DialogFooter>
@@ -195,7 +211,12 @@ const ContributionModal = ({
               Annulla
             </Button>
           </DialogClose>
-          <Button type="button" onClick={handleConfirm} disabled={isLoading || !amount || parseFloat(amount.toString()) <= 0}>
+          {/* Disabilita il pulsante conferma se il prodotto è completo */}
+          <Button
+             type="button"
+             onClick={handleConfirm}
+             disabled={isLoading || !amount || parseFloat(amount.toString()) <= 0 || calculatedRemaining <= 0}
+           >
             {isLoading ? 'Confermando...' : 'Conferma Contributo'}
           </Button>
         </DialogFooter>
