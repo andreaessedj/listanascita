@@ -3,7 +3,8 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
-  imageUrl: string;
+  imageUrl?: string; // Reso opzionale
   contributedAmount: number;
-  category?: string; // e.g., "Passeggio", "Pappa", "Nanna"
+  category?: string;
+  originalUrl?: string;
 }
