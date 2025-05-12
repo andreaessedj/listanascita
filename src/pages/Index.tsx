@@ -203,8 +203,7 @@ const Index = () => {
   }, [products, sortCriteria, sortDirection]);
 
   return (
-    // Applica la nuova classe per lo sfondo animato
-    <div className="min-h-screen text-gray-700 relative overflow-hidden animated-waves-background">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
       {/* Rimosso rendering Confetti */}
       {/* {showConfetti && <Confetti ... />} */}
 
@@ -213,7 +212,7 @@ const Index = () => {
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
         {/* Applica la classe per l'effetto hover al logo */}
-        <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600 logo-gradient-hover">
+        <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600">
           Ilaria & Andrea
         </h1>
         <p className="mt-2 text-2xl text-gray-600">Vi Presentano</p>
@@ -281,7 +280,7 @@ const Index = () => {
         )}
       </main>
 
-      <footer className="py-8 text-center text-gray-500 relative z-10">
+      <footer className="py-8 text-center text-gray-500">
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
       </footer>
 
