@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-// Rimosso import Confetti
-// import Confetti from 'react-confetti';
+import { Link } from 'react-router-dom'; // Importa Link
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt';
@@ -300,8 +299,13 @@ const Index = () => {
         )}
       </main>
 
-      <footer className="py-8 text-center text-gray-500">
+      {/* Footer con link admin */}
+      <footer className="py-8 text-center text-gray-500 relative z-10">
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
+        {/* Link Admin posizionato in basso a destra */}
+        <Link to="/admin" className="absolute bottom-2 right-4 text-xs text-gray-400 hover:text-gray-600 underline">
+          Admin
+        </Link>
       </footer>
 
       <ContributionModal
