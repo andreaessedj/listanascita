@@ -33,7 +33,7 @@ const useWindowSize = () => {
     }
     window.addEventListener('resize', updateSize);
     updateSize();
-    return () => window.removeEventListener('resize', updateSize);
+    return () => window.removeEventListener('change', updateSize);
   }, []);
   return size;
 }
@@ -203,7 +203,8 @@ const Index = () => {
   }, [products, sortCriteria, sortDirection]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
+    // Applica la classe per l'animazione dello sfondo al container principale
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden animate-gradient">
       {/* Rimosso rendering Confetti */}
       {/* {showConfetti && <Confetti ... />} */}
 
@@ -211,7 +212,8 @@ const Index = () => {
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
-        <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600">
+        {/* Applica la classe per l'effetto hover al logo */}
+        <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600 logo-gradient-hover">
           Ilaria & Andrea
         </h1>
         <p className="mt-2 text-2xl text-gray-600">Vi Presentano</p>
