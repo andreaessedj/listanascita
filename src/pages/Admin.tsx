@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useSupabaseClient } from '@supabase/auth-ui-react';
+import { supabase } from '@/integrations/supabase/client'; // Importa il client direttamente
+// Rimuovi useSupabaseClient
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 const Admin = () => {
-  const supabaseClient = useSupabaseClient();
+  // Rimuovi supabaseClient = useSupabaseClient();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +16,8 @@ const Admin = () => {
   }, []);
 
   const handleLogout = async () => {
-    const { error } = await supabaseClient.auth.signOut();
+    // Usa l'istanza supabase importata
+    const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Errore durante il logout:', error);
     } else {
