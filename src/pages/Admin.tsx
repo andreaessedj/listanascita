@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'; // Rimosso DialogFooter, DialogClose per ora
+} from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
 import { Pencil, Trash2, PlusCircle } from 'lucide-react';
@@ -35,10 +35,9 @@ const Admin = () => {
     setLoading(true);
     setError(null);
     try {
-      // Seleziona anche la nuova colonna image_urls
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls') // Assicurati di selezionare la colonna JSONB
+        .select('*, image_urls')
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
@@ -49,10 +48,11 @@ const Admin = () => {
         description: item.description,
         price: item.price,
         imageUrl: item.image_url,
-        imageUrls: item.image_urls || [], // Leggi l'array JSONB, default a [] se null
+        imageUrls: item.image_urls || [],
         contributedAmount: item.contributed_amount,
         category: item.category,
-        originalUrl: item.original_url
+        originalUrl: item.original_url,
+        createdAt: item.created_at, // Manteniamo per futuro ordinamento admin
       })) || [];
       setProducts(formattedProducts);
     } catch (err: any) {
@@ -86,42 +86,50 @@ const Admin = () => {
   const handleSaveProduct = async (formData: ProductFormData) => {
     setFormLoading(true);
     try {
-      // Estrai gli URL aggiuntivi dalla textarea, puliscili e filtrali
       const additionalUrls = (formData.additionalImageUrlsText || '')
-        .split('\n') // Dividi per nuova riga
-        .map(url => url.trim()) // Rimuovi spazi bianchi
-        .filter(url => url.length > 0 && url.startsWith('http')); // Filtra URL vuoti o non validi
+        .split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0 && url.startsWith('http'));
 
-      // Combina l'URL principale (se esiste) con quelli aggiuntivi, evitando duplicati
       const allImageUrls = [
-        ...(formData.imageUrl ? [formData.imageUrl.trim()] : []), // Aggiungi il principale se presente
+        ...(formData.imageUrl ? [formData.imageUrl.trim()] : []),
         ...additionalUrls
       ];
-      const uniqueImageUrls = Array.from(new Set(allImageUrls)); // Rimuovi duplicati
+      const uniqueImageUrls = Array.from(new Set(allImageUrls));
 
-      const productDataToSave = {
+      // Dati comuni per insert e update
+      const commonData = {
         name: formData.name,
         description: formData.description,
         price: formData.price,
-        image_url: formData.imageUrl?.trim() || null, // Salva l'URL principale (o null)
-        image_urls: uniqueImageUrls.length > 0 ? uniqueImageUrls : null, // Salva l'array JSONB (o null se vuoto)
+        image_url: formData.imageUrl?.trim() || null,
+        image_urls: uniqueImageUrls.length > 0 ? uniqueImageUrls : null,
         original_url: formData.originalUrl?.trim() || null,
         category: formData.category?.trim() || null,
       };
 
+
       if (editingProduct) {
-        // Update
+        // Update: includi contributed_amount
+        const productDataToUpdate = {
+          ...commonData,
+          contributed_amount: formData.contributedAmount, // Aggiungi contributed_amount
+        };
         const { error: updateError } = await supabase
           .from('products')
-          .update(productDataToSave)
+          .update(productDataToUpdate)
           .match({ id: editingProduct.id });
         if (updateError) throw updateError;
         showSuccess('Prodotto aggiornato con successo!');
       } else {
-        // Insert
+        // Insert: contributed_amount sarà 0 di default nel DB
+         const productDataToInsert = {
+          ...commonData,
+          // Non specificare contributed_amount, userà il default 0
+        };
         const { error: insertError } = await supabase
           .from('products')
-          .insert([productDataToSave]);
+          .insert([productDataToInsert]);
         if (insertError) throw insertError;
         showSuccess('Prodotto aggiunto con successo!');
       }
@@ -136,7 +144,6 @@ const Admin = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    // ... (invariato) ...
      if (!window.confirm("Sei sicuro di voler eliminare questo prodotto?")) return;
     try {
       const { error: deleteError } = await supabase
@@ -252,7 +259,6 @@ const Admin = () => {
               {editingProduct ? 'Modifica i dettagli del prodotto.' : 'Inserisci i dettagli del nuovo prodotto.'}
             </DialogDescription>
           </DialogHeader>
-          {/* Passa le props corrette al form */}
           <ProductForm
             initialData={editingProduct}
             onSubmit={handleSaveProduct}
