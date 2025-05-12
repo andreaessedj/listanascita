@@ -100,23 +100,36 @@
   }
 }
 
-/* Animazione Sfondo Sfumato */
-@keyframes gradient-animation {
+/* Animazione Sfondo con Gradienti Multipli */
+@keyframes moveGradients {
   0% {
-    background-position: 0% 50%;
+    background-position: 0% 0%, 50% 100%, 100% 0%, 0% 50%;
+    background-size: 150% 150%, 180% 180%, 160% 160%, 190% 190%;
   }
   50% {
-    background-position: 100% 50%;
+    background-position: 100% 50%, 0% 0%, 50% 100%, 100% 50%;
+    background-size: 180% 180%, 160% 160%, 190% 190%, 150% 150%;
   }
   100% {
-    background-position: 0% 50%;
+    background-position: 0% 0%, 50% 100%, 100% 0%, 0% 50%;
+    background-size: 150% 150%, 180% 180%, 160% 160%, 190% 190%;
   }
 }
 
-.animate-gradient {
-  background-size: 400% 400%; /* Aumentato da 200% per un movimento più ampio */
-  animation: gradient-animation 15s ease infinite;
+.animated-waves-background {
+  /* Colore di fallback */
+  background-color: #fce4ec; /* Un rosa pastello leggero */
+  /* Gradienti multipli */
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 182, 193, 0.7) 0%, transparent 50%), /* Rosa */
+    radial-gradient(circle at 80% 70%, rgba(173, 216, 230, 0.6) 0%, transparent 50%), /* Azzurro */
+    radial-gradient(circle at 50% 90%, rgba(221, 160, 221, 0.5) 0%, transparent 50%), /* Viola chiaro */
+    radial-gradient(circle at 10% 80%, rgba(144, 238, 144, 0.4) 0%, transparent 50%); /* Verde pastello (opzionale, per varietà) */
+  background-size: 150% 150%, 180% 180%, 160% 160%, 190% 190%; /* Dimensioni iniziali dei gradienti */
+  background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; /* Posizioni iniziali */
+  animation: moveGradients 20s ease infinite; /* Applica l'animazione */
 }
+
 
 /* Effetto Hover sul Logo (testo sfumato) */
 .logo-gradient-hover {

@@ -203,8 +203,8 @@ const Index = () => {
   }, [products, sortCriteria, sortDirection]);
 
   return (
-    // Applica la classe per l'animazione dello sfondo al container principale
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden animate-gradient">
+    {/* Applica la nuova classe per lo sfondo animato */}
+    <div className="min-h-screen text-gray-700 relative overflow-hidden animated-waves-background">
       {/* Rimosso rendering Confetti */}
       {/* {showConfetti && <Confetti ... />} */}
 
