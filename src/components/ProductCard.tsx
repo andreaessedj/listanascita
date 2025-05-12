@@ -37,6 +37,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
               src={product.imageUrl || "https://via.placeholder.com/300x300?text=Prodotto"}
               alt={product.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" // Leggero zoom immagine su hover (richiede group su Card se si vuole attivare da Card hover)
+              loading="lazy" // Aggiunto lazy loading
             />
             {/* Indicatore immagini multiple */}
             {hasMultipleImages && !isCompleted && ( // Nascondi se completato per dare spazio al badge

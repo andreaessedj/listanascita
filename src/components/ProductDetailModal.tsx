@@ -54,6 +54,7 @@ const ProductDetailModal = ({ isOpen, onClose, product }: ProductDetailModalProp
                           alt={`${product.name} - Immagine ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/400?text=Immagine+non+disponibile")}
+                          loading="lazy" // Aggiunto lazy loading
                         />
                       </div>
                     </div>
