@@ -54,13 +54,10 @@ const Index = () => {
     product: Product | null;
   }>({ isOpen: false, product: null });
 
+  // Stati per l'ordinamento (default rimane createdAt desc per il fetch iniziale,
+  // ma la logica useMemo gestirà la priorità per completamento)
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  // Rimosso stato per Confetti
-  // const [showConfetti, setShowConfetti] = useState(false);
-  // const confettiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // const [windowWidth, windowHeight] = useWindowSize();
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -91,7 +88,7 @@ const Index = () => {
         const { data, error: supabaseError } = await supabase
           .from('products')
           .select('*, image_urls')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false }); // Fetch iniziale per data creazione
 
         if (supabaseError) throw supabaseError;
 
@@ -186,9 +183,20 @@ const Index = () => {
     setDetailModalState({ isOpen: false, product: null });
   };
 
+  // Logica di ordinamento aggiornata
   const sortedProducts = useMemo(() => {
-     let tempProducts = [...products];
+    let tempProducts = [...products];
+
     tempProducts.sort((a, b) => {
+      const isCompletedA = a.contributedAmount >= a.price;
+      const isCompletedB = b.contributedAmount >= b.price;
+
+      // 1. Priorità: Non completati prima dei completati
+      if (!isCompletedA && isCompletedB) return -1; // A non completato, B completato -> A prima
+      if (isCompletedA && !isCompletedB) return 1;  // A completato, B non completato -> B prima
+
+      // 2. Se sono nello stesso gruppo (entrambi completati o entrambi non completati),
+      //    applica l'ordinamento selezionato dall'utente.
       let comparison = 0;
       if (sortCriteria === 'name') {
         comparison = a.name.localeCompare(b.name);
@@ -197,10 +205,14 @@ const Index = () => {
       } else if (sortCriteria === 'createdAt') {
         comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       }
+
+      // Applica la direzione (asc/desc) al risultato della comparazione
       return sortDirection === 'asc' ? comparison : -comparison;
     });
+
     return tempProducts;
-  }, [products, sortCriteria, sortDirection]);
+  }, [products, sortCriteria, sortDirection]); // Dipende da products e dai criteri di ordinamento
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
