@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea'; // Importa Textarea
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
@@ -20,7 +21,8 @@ interface ContributionModalProps {
   onClose: () => void;
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
-  onConfirmContribution: (productId: string, amount: number) => Promise<void>;
+  // Aggiorna la firma per includere i nuovi dati
+  onConfirmContribution: (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => Promise<void>;
   paymentDetails: {
     paypal: string;
     satispay: string;
@@ -37,6 +39,9 @@ const ContributionModal = ({
   paymentDetails,
 }: ContributionModalProps) => {
   const [amount, setAmount] = useState<number | string>('');
+  const [contributorName, setContributorName] = useState(''); // Nuovo stato
+  const [contributorSurname, setContributorSurname] = useState(''); // Nuovo stato
+  const [message, setMessage] = useState(''); // Nuovo stato
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,10 +71,17 @@ const ContributionModal = ({
        setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
        return;
     }
+    // Validazione minima per nome e cognome (richiesti)
+    if (!contributorName.trim() || !contributorSurname.trim()) {
+        setError("Nome e Cognome sono obbligatori.");
+        return;
+    }
+
     setError(null);
     setIsLoading(true);
     try {
-      await onConfirmContribution(product.id, contributionAmount);
+      // Passa tutti i dati raccolti
+      await onConfirmContribution(product.id, contributionAmount, contributorName.trim(), contributorSurname.trim(), message.trim());
       // Success: modal will be closed by parent, no need to reset state here
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
@@ -143,7 +155,19 @@ const ContributionModal = ({
     }
   };
 
-  // Rimosso useEffect per il reset dello stato
+  // Reset state when modal opens with a new product/method
+  // Usiamo useEffect con la key sul DialogContent per forzare il reset
+  useEffect(() => {
+    if (isOpen) {
+      setAmount('');
+      setContributorName(''); // Resetta anche i nuovi campi
+      setContributorSurname('');
+      setMessage('');
+      setError(null);
+      setIsLoading(false);
+    }
+  }, [isOpen, product, paymentMethod]); // Dipendenze corrette
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -158,9 +182,38 @@ const ContributionModal = ({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {/* Campi Nome e Cognome */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contributorName" className="text-right">
+              Nome*
+            </Label>
+            <Input
+              id="contributorName"
+              value={contributorName}
+              onChange={(e) => setContributorName(e.target.value)}
+              className="col-span-3"
+              placeholder="Il tuo nome"
+              disabled={calculatedRemaining <= 0}
+            />
+          </div>
+           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contributorSurname" className="text-right">
+              Cognome*
+            </Label>
+            <Input
+              id="contributorSurname"
+              value={contributorSurname}
+              onChange={(e) => setContributorSurname(e.target.value)}
+              className="col-span-3"
+              placeholder="Il tuo cognome"
+              disabled={calculatedRemaining <= 0}
+            />
+          </div>
+
+          {/* Campo Importo */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
-              Importo (€)
+              Importo (€)*
             </Label>
             <Input
               id="amount"
@@ -175,6 +228,24 @@ const ContributionModal = ({
               disabled={calculatedRemaining <= 0}
             />
           </div>
+
+          {/* Campo Messaggio (Opzionale) */}
+           <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="message" className="text-right pt-2">
+              Messaggio
+            </Label>
+            <Textarea
+              id="message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="col-span-3"
+              rows={3}
+              placeholder="Un messaggio per Ilaria e Andrea (opzionale)"
+              disabled={calculatedRemaining <= 0}
+            />
+          </div>
+
+
           {error && <p className="text-sm text-red-600 text-center col-span-4">{error}</p>}
 
           {calculatedRemaining <= 0 ? (
@@ -183,7 +254,7 @@ const ContributionModal = ({
                <AlertTitle>Completato!</AlertTitle>
                <AlertDescription>
                  Questo regalo è già stato completato. Grazie a tutti!
-               </AlertDescription>
+               </Alertcription>
              </Alert>
           ) : (
             getPaymentInstructions()
@@ -202,7 +273,7 @@ const ContributionModal = ({
           <Button
              type="button"
              onClick={handleConfirm}
-             disabled={isLoading || !amount || parseFloat(amount.toString()) <= 0 || calculatedRemaining <= 0}
+             disabled={isLoading || !amount || parseFloat(amount.toString()) <= 0 || calculatedRemaining <= 0 || !contributorName.trim() || !contributorSurname.trim()} // Disabilita se campi obbligatori vuoti
            >
             {isLoading ? 'Confermando...' : 'Conferma Contributo'}
           </Button>

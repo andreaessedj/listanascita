@@ -124,7 +124,8 @@ const Index = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
 
-  const handleConfirmContribution = async (productId: string, amount: number) => {
+  // Aggiorna la firma per ricevere i nuovi dati
+  const handleConfirmContribution = async (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => {
     const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
@@ -159,9 +160,16 @@ const Index = () => {
       confettiTimeoutRef.current = setTimeout(() => setShowConfetti(false), 5000);
       */
 
+      // Chiama la Edge Function, passando i nuovi dati
       try {
         const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
-          body: { productName: currentProduct.name, contributionAmount: amount },
+          body: {
+            productName: currentProduct.name,
+            contributionAmount: amount,
+            contributorName: contributorName, // Passa il nome
+            contributorSurname: contributorSurname, // Passa il cognome
+            message: message, // Passa il messaggio
+          },
         });
         if (functionError) console.error('Errore chiamata Edge Function:', functionError);
         else console.log('Notifica email inviata (o tentativo).');

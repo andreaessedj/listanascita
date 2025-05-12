@@ -9,7 +9,7 @@ const corsHeaders = {
 serve(async (req: Request) => {
   // Gestione OPTIONS per preflight CORS
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
@@ -25,11 +25,12 @@ serve(async (req: Request) => {
 
     const resend = new Resend(RESEND_API_KEY);
 
-    // Estrai i dati dal corpo della richiesta
-    const { productName, contributionAmount, contributorName, contributorEmail } = await req.json();
+    // Estrai i dati dal corpo della richiesta, inclusi i nuovi campi
+    const { productName, contributionAmount, contributorName, contributorSurname, message } = await req.json();
 
-    if (!productName || typeof contributionAmount === 'undefined') {
-      return new Response(JSON.stringify({ error: "Dati mancanti: productName e contributionAmount sono richiesti." }), {
+    // Validazione minima
+    if (!productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname) {
+      return new Response(JSON.stringify({ error: "Dati mancanti: productName, contributionAmount, contributorName e contributorSurname sono richiesti." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -44,8 +45,8 @@ serve(async (req: Request) => {
       <p>Ciao!</p>
       <p>Hai ricevuto un nuovo contributo per il prodotto: <strong>${productName}</strong>.</p>
       <p>Importo del contributo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p>
-      ${contributorName ? `<p>Nome del Contribuente: ${contributorName}</p>` : ''}
-      ${contributorEmail ? `<p>Email del Contribuente: ${contributorEmail}</p>` : ''}
+      <p>Da: <strong>${contributorName} ${contributorSurname}</strong></p>
+      ${message ? `<p>Messaggio: ${message}</p>` : ''} <!-- Includi il messaggio se presente -->
       <p>Controlla la tua lista nascita per i dettagli.</p>
       <br/>
       <p><em>Questo è un messaggio automatico.</em></p>
