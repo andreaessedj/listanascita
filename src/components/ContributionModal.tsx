@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // Assicurati che useEffect sia importato
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea'; // Importa Textarea
+import { Textarea } from '@/components/ui/textarea';
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
@@ -21,7 +21,6 @@ interface ContributionModalProps {
   onClose: () => void;
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
-  // Aggiorna la firma per includere i nuovi dati
   onConfirmContribution: (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => Promise<void>;
   paymentDetails: {
     paypal: string;
@@ -39,26 +38,29 @@ const ContributionModal = ({
   paymentDetails,
 }: ContributionModalProps) => {
   const [amount, setAmount] = useState<number | string>('');
-  const [contributorName, setContributorName] = useState(''); // Nuovo stato
-  const [contributorSurname, setContributorSurname] = useState(''); // Nuovo stato
-  const [message, setMessage] = useState(''); // Nuovo stato
+  const [contributorName, setContributorName] = useState('');
+  const [contributorSurname, setContributorSurname] = useState('');
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Early return se non ci sono prodotto o metodo (necessario prima di accedere a product.id)
-  if (!isOpen || !product || !paymentMethod) { // Aggiunto !isOpen al check iniziale
-      // Resetta lo stato interno quando il modale si chiude
-      if (!isOpen) {
-        setAmount('');
-        setContributorName('');
-        setContributorSurname('');
-        setMessage('');
-        setError(null);
-        setIsLoading(false);
-      }
+  // Usa useEffect per resettare lo stato quando il modale si apre con un nuovo prodotto/metodo
+  useEffect(() => {
+    if (isOpen) {
+      setAmount('');
+      setContributorName('');
+      setContributorSurname('');
+      setMessage('');
+      setError(null);
+      setIsLoading(false);
+    }
+    // Questo useEffect non ha bisogno di un cleanup specifico in questo caso
+  }, [isOpen, product, paymentMethod]); // Dipendenze: si attiva quando isOpen, product o paymentMethod cambiano
+
+  // Early return se il modale non deve essere visibile
+  if (!isOpen || !product || !paymentMethod) {
       return null;
   }
-
 
   const remainingAmount = product.price - product.contributedAmount;
   const calculatedRemaining = Math.max(0, remainingAmount);
@@ -83,7 +85,6 @@ const ContributionModal = ({
        setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
        return;
     }
-    // Validazione minima per nome e cognome (richiesti)
     if (!contributorName.trim() || !contributorSurname.trim()) {
         setError("Nome e Cognome sono obbligatori.");
         return;
@@ -92,18 +93,15 @@ const ContributionModal = ({
     setError(null);
     setIsLoading(true);
     try {
-      // Passa tutti i dati raccolti
       await onConfirmContribution(product.id, contributionAmount, contributorName.trim(), contributorSurname.trim(), message.trim());
-      // Success: modal will be closed by parent, no need to reset state here
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
       setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      setIsLoading(false); // Keep modal open on error
+      setIsLoading(false);
     }
   };
 
   const getPaymentInstructions = () => {
-    // ... (codice istruzioni invariato) ...
     switch (paymentMethod) {
       case 'paypal':
         return (
@@ -167,12 +165,10 @@ const ContributionModal = ({
     }
   };
 
-  // Rimosso useEffect per il reset dello stato, gestito nell'early return
 
   return (
-    // Riscritto il blocco return per massima pulizia
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* Aggiunta key a DialogContent per forzare il remount e resettare lo stato */}
+      {/* La key è ancora utile per forzare il remount in alcuni casi, la manteniamo */}
       <DialogContent key={product.id + '-' + paymentMethod} className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Contribuisci per: {product.name}</DialogTitle>
