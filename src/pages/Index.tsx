@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'; // Aggiunto useRef
+import { useEffect, useState, useMemo, useRef } from 'react'; // Mantenuto useRef per ora, anche se non usato
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
@@ -16,13 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import Confetti from 'react-confetti'; // Importa Confetti
+// Rimosso import Confetti
+// import Confetti from 'react-confetti';
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
-// Hook per dimensioni finestra (necessario per Confetti)
+// Rimosso hook useWindowSize
+/*
 const useWindowSize = () => {
   const [size, setSize] = useState([0, 0]);
   useEffect(() => {
@@ -35,6 +37,7 @@ const useWindowSize = () => {
   }, []);
   return size;
 }
+*/
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -54,10 +57,10 @@ const Index = () => {
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  // Stato per Confetti
-  const [showConfetti, setShowConfetti] = useState(false);
-  const confettiTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref per il timeout
-  const [windowWidth, windowHeight] = useWindowSize(); // Ottieni dimensioni finestra
+  // Rimosso stato per Confetti
+  // const [showConfetti, setShowConfetti] = useState(false);
+  // const confettiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // const [windowWidth, windowHeight] = useWindowSize();
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -69,19 +72,19 @@ const Index = () => {
     },
   };
 
+  // Rimosso useEffect per cleanup confetti timeout
+  /*
   useEffect(() => {
-    // Cleanup timeout on unmount
     return () => {
       if (confettiTimeoutRef.current) {
         clearTimeout(confettiTimeoutRef.current);
       }
     };
   }, []);
-
+  */
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // ... (fetch invariato) ...
        setLoading(true);
       setError(null);
       try {
@@ -138,7 +141,7 @@ const Index = () => {
         .update({ contributed_amount: newContributedAmount })
         .match({ id: productId });
 
-      if (updateError) throw updateError; // Errore gestito nel catch esterno
+      if (updateError) throw updateError;
 
       setProducts(prevProducts =>
         prevProducts.map(p =>
@@ -150,17 +153,15 @@ const Index = () => {
       showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
       handleCloseContributeModal();
 
-      // Attiva Confetti
+      // Rimosso codice attivazione confetti
+      /*
       setShowConfetti(true);
-      // Pulisci timeout precedente se esiste
       if (confettiTimeoutRef.current) {
         clearTimeout(confettiTimeoutRef.current);
       }
-      // Nascondi confetti dopo 5 secondi
       confettiTimeoutRef.current = setTimeout(() => setShowConfetti(false), 5000);
+      */
 
-
-      // Chiama la Edge Function (invariato)
       try {
         const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
           body: { productName: currentProduct.name, contributionAmount: amount },
@@ -174,7 +175,7 @@ const Index = () => {
     } catch (err: any) {
       console.error("Errore durante la conferma del contributo:", err);
       showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      throw err; // Rilancia l'errore per mantenere il modale aperto
+      throw err;
     }
   };
 
@@ -186,7 +187,6 @@ const Index = () => {
   };
 
   const sortedProducts = useMemo(() => {
-    // ... (logica ordinamento invariata) ...
      let tempProducts = [...products];
     tempProducts.sort((a, b) => {
       let comparison = 0;
@@ -204,18 +204,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
-      {/* Render Confetti */}
-      {showConfetti && (
-        <Confetti
-          width={windowWidth}
-          height={windowHeight}
-          recycle={false} // Non farli riciclare all'infinito
-          numberOfPieces={300} // Numero di coriandoli
-          gravity={0.15} // Leggermente più lenti a cadere
-        />
-      )}
+      {/* Rimosso rendering Confetti */}
+      {/* {showConfetti && <Confetti ... />} */}
 
-      {/* Aggiunto un leggero sfondo pattern all'header */}
       <header className="py-8 text-center relative z-10 bg-white/30 backdrop-blur-sm mb-4 shadow-sm">
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
@@ -235,7 +226,6 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 relative z-10">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
-          {/* Controlli Ordinamento (invariati) */}
            <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Label htmlFor="sort-criteria" className="text-sm font-medium">Ordina per:</Label>
@@ -257,7 +247,6 @@ const Index = () => {
           </div>
         </div>
 
-         {/* Lista Prodotti (invariata, usa sortedProducts) */}
          {loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(3)].map((_, index) => (
@@ -294,7 +283,6 @@ const Index = () => {
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
       </footer>
 
-      {/* Modali (invariati) */}
       <ContributionModal
         isOpen={contributionModalState.isOpen}
         onClose={handleCloseContributeModal}
