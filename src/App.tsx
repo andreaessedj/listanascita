@@ -4,8 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
-// Rimuovi SessionContextProvider
-// import { SessionContextProvider } from '@supabase/auth-ui-react'; // Rimosso
+// Ripristina SessionContextProvider
+import { SessionContextProvider } from '@supabase/auth-ui-react';
 import { supabase } from '@/integrations/supabase/client';
 
 import Index from "./pages/Index";
@@ -57,8 +57,8 @@ const AuthManager = () => {
 }
 
 const App = () => (
-  // Rimuovi SessionContextProvider wrapper
-  // <SessionContextProvider supabaseClient={supabase}>
+  // Ripristina SessionContextProvider wrapper
+  <SessionContextProvider supabaseClient={supabase}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -66,7 +66,7 @@ const App = () => (
         <AuthManager />
       </TooltipProvider>
     </QueryClientProvider>
-  // </SessionContextProvider>
+  </SessionContextProvider>
 );
 
 export default App;
