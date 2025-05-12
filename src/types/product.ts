@@ -3,7 +3,8 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
-  imageUrl?: string; // Reso opzionale
+  imageUrl?: string; // Immagine principale/thumbnail
+  imageUrls?: string[]; // Array di URL per immagini aggiuntive
   contributedAmount: number;
   category?: string;
   originalUrl?: string;

@@ -15,14 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import ProductForm, { ProductFormData } from '@/components/admin/ProductForm'; // Importa ProductForm
+} from '@/components/ui/dialog'; // Rimosso DialogFooter, DialogClose per ora
+import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
 import { Pencil, Trash2, PlusCircle } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
-import { showError, showSuccess } from '@/utils/toast'; // Per notifiche
+import { showError, showSuccess } from '@/utils/toast';
 
 const Admin = () => {
   const [loading, setLoading] = useState(true);
@@ -37,18 +35,21 @@ const Admin = () => {
     setLoading(true);
     setError(null);
     try {
+      // Seleziona anche la nuova colonna image_urls
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*')
+        .select('*, image_urls') // Assicurati di selezionare la colonna JSONB
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
+
       const formattedProducts = data?.map(item => ({
         id: item.id,
         name: item.name,
         description: item.description,
         price: item.price,
         imageUrl: item.image_url,
+        imageUrls: item.image_urls || [], // Leggi l'array JSONB, default a [] se null
         contributedAmount: item.contributed_amount,
         category: item.category,
         originalUrl: item.original_url
@@ -79,20 +80,33 @@ const Admin = () => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setEditingProduct(null); // Resetta il prodotto in modifica
+    setEditingProduct(null);
   };
 
   const handleSaveProduct = async (formData: ProductFormData) => {
     setFormLoading(true);
     try {
+      // Estrai gli URL aggiuntivi dalla textarea, puliscili e filtrali
+      const additionalUrls = (formData.additionalImageUrlsText || '')
+        .split('\n') // Dividi per nuova riga
+        .map(url => url.trim()) // Rimuovi spazi bianchi
+        .filter(url => url.length > 0 && url.startsWith('http')); // Filtra URL vuoti o non validi
+
+      // Combina l'URL principale (se esiste) con quelli aggiuntivi, evitando duplicati
+      const allImageUrls = [
+        ...(formData.imageUrl ? [formData.imageUrl.trim()] : []), // Aggiungi il principale se presente
+        ...additionalUrls
+      ];
+      const uniqueImageUrls = Array.from(new Set(allImageUrls)); // Rimuovi duplicati
+
       const productDataToSave = {
         name: formData.name,
         description: formData.description,
         price: formData.price,
-        image_url: formData.imageUrl, // Supabase usa snake_case
-        original_url: formData.originalUrl,
-        category: formData.category,
-        // contributed_amount non viene gestito qui
+        image_url: formData.imageUrl?.trim() || null, // Salva l'URL principale (o null)
+        image_urls: uniqueImageUrls.length > 0 ? uniqueImageUrls : null, // Salva l'array JSONB (o null se vuoto)
+        original_url: formData.originalUrl?.trim() || null,
+        category: formData.category?.trim() || null,
       };
 
       if (editingProduct) {
@@ -107,11 +121,11 @@ const Admin = () => {
         // Insert
         const { error: insertError } = await supabase
           .from('products')
-          .insert([productDataToSave]); // insert si aspetta un array
+          .insert([productDataToSave]);
         if (insertError) throw insertError;
         showSuccess('Prodotto aggiunto con successo!');
       }
-      await fetchProducts(); // Ricarica i prodotti
+      await fetchProducts();
       handleCloseModal();
     } catch (err: any) {
       console.error("Errore salvataggio prodotto:", err);
@@ -122,7 +136,8 @@ const Admin = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm("Sei sicuro di voler eliminare questo prodotto?")) return;
+    // ... (invariato) ...
+     if (!window.confirm("Sei sicuro di voler eliminare questo prodotto?")) return;
     try {
       const { error: deleteError } = await supabase
         .from('products')
@@ -137,7 +152,7 @@ const Admin = () => {
     }
   };
 
-  if (error && !loading) { // Mostra errore solo se non sta caricando per evitare flash
+  if (error && !loading) {
     return <div className="text-red-500 text-center p-4">{error}</div>;
   }
 
@@ -151,7 +166,7 @@ const Admin = () => {
       </div>
 
       {loading ? (
-        <div className="space-y-4">
+         <div className="space-y-4">
           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : (
@@ -237,6 +252,7 @@ const Admin = () => {
               {editingProduct ? 'Modifica i dettagli del prodotto.' : 'Inserisci i dettagli del nuovo prodotto.'}
             </DialogDescription>
           </DialogHeader>
+          {/* Passa le props corrette al form */}
           <ProductForm
             initialData={editingProduct}
             onSubmit={handleSaveProduct}
