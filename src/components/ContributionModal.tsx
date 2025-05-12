@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // Importa useEffect
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -40,10 +40,10 @@ const ContributionModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Early return se non ci sono prodotto o metodo (necessario prima di accedere a product.id)
   if (!product || !paymentMethod) return null;
 
   const remainingAmount = product.price - product.contributedAmount;
-  // Ensure remainingAmount is not negative if contribution exceeds price slightly due to rounding
   const calculatedRemaining = Math.max(0, remainingAmount);
   const maxContribution = calculatedRemaining > 0 ? calculatedRemaining : product.price;
 
@@ -52,7 +52,6 @@ const ContributionModal = ({
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
        const numericValue = parseFloat(value);
        if (!isNaN(numericValue) && numericValue > maxContribution) {
-         // Set to max contribution, ensuring 2 decimal places
          setAmount(maxContribution.toFixed(2));
        } else {
          setAmount(value);
@@ -62,7 +61,6 @@ const ContributionModal = ({
 
   const handleConfirm = async () => {
     const contributionAmount = parseFloat(amount.toString());
-    // Use a small epsilon for floating point comparison
     const epsilon = 0.001;
     if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > maxContribution + epsilon) {
        setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
@@ -71,12 +69,12 @@ const ContributionModal = ({
     setError(null);
     setIsLoading(true);
     try {
-      // Pass the validated, parsed amount
       await onConfirmContribution(product.id, contributionAmount);
+      // Success: modal will be closed by parent, no need to reset state here
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
       setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      setIsLoading(false);
+      setIsLoading(false); // Keep modal open on error
     }
   };
 
@@ -145,20 +143,12 @@ const ContributionModal = ({
     }
   };
 
-  // Reset state when modal opens with a new product/method
-  // CORREZIONE: Usare useEffect invece di useState qui
-  useEffect(() => {
-    if (isOpen) {
-      setAmount('');
-      setError(null);
-      setIsLoading(false);
-    }
-  }, [isOpen, product, paymentMethod]); // Dipendenze corrette
-
+  // Rimosso useEffect per il reset dello stato
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px]">
+      {/* Aggiunta key a DialogContent per forzare il remount e resettare lo stato */}
+      <DialogContent key={product.id + '-' + paymentMethod} className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Contribuisci per: {product.name}</DialogTitle>
           <DialogDescription>
@@ -177,17 +167,16 @@ const ContributionModal = ({
               type="number"
               step="0.01"
               min="0.01"
-              max={maxContribution.toFixed(2)} // Usa toFixed per il valore max nell'input
+              max={maxContribution.toFixed(2)}
               value={amount}
               onChange={handleAmountChange}
               className="col-span-3"
               placeholder={`Max ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`}
-              disabled={calculatedRemaining <= 0} // Disabilita se l'importo è già stato raggiunto
+              disabled={calculatedRemaining <= 0}
             />
           </div>
           {error && <p className="text-sm text-red-600 text-center col-span-4">{error}</p>}
 
-          {/* Disabilita le istruzioni e il form se il prodotto è completo */}
           {calculatedRemaining <= 0 ? (
              <Alert variant="default" className="bg-green-50 border-green-200 text-green-700">
                <Terminal className="h-4 w-4" />
@@ -200,7 +189,6 @@ const ContributionModal = ({
             getPaymentInstructions()
           )}
 
-
            <p className="text-xs text-gray-500 mt-2 text-center">
              {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", procedi con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto."}
            </p>
@@ -211,7 +199,6 @@ const ContributionModal = ({
               Annulla
             </Button>
           </DialogClose>
-          {/* Disabilita il pulsante conferma se il prodotto è completo */}
           <Button
              type="button"
              onClick={handleConfirm}
