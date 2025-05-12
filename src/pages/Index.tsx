@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react'; // Aggiunto useRef
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
@@ -16,10 +16,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import Confetti from 'react-confetti'; // Importa Confetti
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
+
+// Hook per dimensioni finestra (necessario per Confetti)
+const useWindowSize = () => {
+  const [size, setSize] = useState([0, 0]);
+  useEffect(() => {
+    function updateSize() {
+      setSize([window.innerWidth, window.innerHeight]);
+    }
+    window.addEventListener('resize', updateSize);
+    updateSize();
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+  return size;
+}
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -39,6 +54,11 @@ const Index = () => {
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  // Stato per Confetti
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref per il timeout
+  const [windowWidth, windowHeight] = useWindowSize(); // Ottieni dimensioni finestra
+
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
     satispay: 'Andrea Savarese / 3496683055',
@@ -50,8 +70,19 @@ const Index = () => {
   };
 
   useEffect(() => {
+    // Cleanup timeout on unmount
+    return () => {
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+      }
+    };
+  }, []);
+
+
+  useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      // ... (fetch invariato) ...
+       setLoading(true);
       setError(null);
       try {
         const { data, error: supabaseError } = await supabase
@@ -107,11 +138,7 @@ const Index = () => {
         .update({ contributed_amount: newContributedAmount })
         .match({ id: productId });
 
-      if (updateError) {
-        console.error("Errore aggiornamento Supabase:", updateError);
-        showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-        throw updateError;
-      }
+      if (updateError) throw updateError; // Errore gestito nel catch esterno
 
       setProducts(prevProducts =>
         prevProducts.map(p =>
@@ -123,29 +150,31 @@ const Index = () => {
       showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
       handleCloseContributeModal();
 
-      // Chiama la Edge Function per inviare la notifica
+      // Attiva Confetti
+      setShowConfetti(true);
+      // Pulisci timeout precedente se esiste
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+      }
+      // Nascondi confetti dopo 5 secondi
+      confettiTimeoutRef.current = setTimeout(() => setShowConfetti(false), 5000);
+
+
+      // Chiama la Edge Function (invariato)
       try {
         const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
-          body: {
-            productName: currentProduct.name,
-            contributionAmount: amount,
-            // Potremmo aggiungere campi per nome/email del donatore se li raccogliessimo
-          },
+          body: { productName: currentProduct.name, contributionAmount: amount },
         });
-        if (functionError) {
-          console.error('Errore chiamata Edge Function:', functionError);
-          // Non mostrare un errore all'utente per questo, è una notifica interna
-        } else {
-          console.log('Notifica email inviata (o tentativo) tramite Edge Function.');
-        }
+        if (functionError) console.error('Errore chiamata Edge Function:', functionError);
+        else console.log('Notifica email inviata (o tentativo).');
       } catch (invokeError) {
         console.error('Errore imprevisto chiamata Edge Function:', invokeError);
       }
 
-    } catch (err) {
-      // L'errore di update è già gestito sopra, questo è per altri errori imprevisti
-      console.error("Errore imprevisto in handleConfirmContribution:", err);
-      // Non è necessario mostrare un altro toast se quello di update è già stato mostrato
+    } catch (err: any) {
+      console.error("Errore durante la conferma del contributo:", err);
+      showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
+      throw err; // Rilancia l'errore per mantenere il modale aperto
     }
   };
 
@@ -157,7 +186,8 @@ const Index = () => {
   };
 
   const sortedProducts = useMemo(() => {
-    let tempProducts = [...products];
+    // ... (logica ordinamento invariata) ...
+     let tempProducts = [...products];
     tempProducts.sort((a, b) => {
       let comparison = 0;
       if (sortCriteria === 'name') {
@@ -173,8 +203,20 @@ const Index = () => {
   }, [products, sortCriteria, sortDirection]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700">
-      <header className="py-8 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
+      {/* Render Confetti */}
+      {showConfetti && (
+        <Confetti
+          width={windowWidth}
+          height={windowHeight}
+          recycle={false} // Non farli riciclare all'infinito
+          numberOfPieces={300} // Numero di coriandoli
+          gravity={0.15} // Leggermente più lenti a cadere
+        />
+      )}
+
+      {/* Aggiunto un leggero sfondo pattern all'header */}
+      <header className="py-8 text-center relative z-10 bg-white/30 backdrop-blur-sm mb-4 shadow-sm">
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
@@ -190,10 +232,11 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 relative z-10">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
-          <div className="flex items-center gap-4">
+          {/* Controlli Ordinamento (invariati) */}
+           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Label htmlFor="sort-criteria" className="text-sm font-medium">Ordina per:</Label>
               <Select value={sortCriteria} onValueChange={(value) => setSortCriteria(value as SortCriteria)}>
@@ -214,6 +257,7 @@ const Index = () => {
           </div>
         </div>
 
+         {/* Lista Prodotti (invariata, usa sortedProducts) */}
          {loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(3)].map((_, index) => (
@@ -246,10 +290,11 @@ const Index = () => {
         )}
       </main>
 
-      <footer className="py-8 text-center text-gray-500">
+      <footer className="py-8 text-center text-gray-500 relative z-10">
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
       </footer>
 
+      {/* Modali (invariati) */}
       <ContributionModal
         isOpen={contributionModalState.isOpen}
         onClose={handleCloseContributeModal}
