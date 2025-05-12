@@ -1,55 +1,58 @@
+import { useEffect, useState } from 'react';
 import ProductCard from '@/components/ProductCard';
 import { Product } from '@/types/product';
 import { Baby, Heart } from 'lucide-react';
-import { showSuccess } from '@/utils/toast'; // Importa la funzione per i toast
-
-// Dati di esempio per i prodotti
-const sampleProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Passeggino Trio',
-    description: 'Un passeggino versatile per tutte le avventure.',
-    price: 550,
-    imageUrl: 'https://images.unsplash.com/photo-1586059304348-0532101a48f7?q=80&w=800&auto=format&fit=crop',
-    contributedAmount: 150,
-    category: 'Passeggio',
-  },
-  {
-    id: '2',
-    name: 'Culla Next2Me',
-    description: 'Per sogni d\'oro accanto a mamma e papà.',
-    price: 220,
-    imageUrl: 'https://images.unsplash.com/photo-1604834800608-7cd6cf320c80?q=80&w=800&auto=format&fit=crop',
-    contributedAmount: 220,
-    category: 'Nanna',
-  },
-  {
-    id: '3',
-    name: 'Seggiolone Pappa',
-    description: 'Comodo e pratico per le prime pappe.',
-    price: 180,
-    imageUrl: 'https://images.unsplash.com/photo-1604834800608-7cd6cf320c80?q=80&w=800&auto=format&fit=crop', // Placeholder, da cambiare
-    contributedAmount: 50,
-    category: 'Pappa',
-  },
-  {
-    id: '4',
-    name: 'Set Lenzuolini',
-    description: 'Morbidi lenzuolini per il lettino.',
-    price: 70,
-    imageUrl: 'https://images.unsplash.com/photo-1599507533901-068f2bab0f00?q=80&w=800&auto=format&fit=crop',
-    contributedAmount: 10,
-    category: 'Nanna',
-  },
-];
+import { showSuccess, showError as showErrorToast } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client'; // Importa il client Supabase
+import { Skeleton } from "@/components/ui/skeleton"; // Per l'effetto di caricamento
 
 const Index = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error: supabaseError } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (supabaseError) {
+          throw supabaseError;
+        }
+        
+        // Assicurati che i dati corrispondano al tipo Product
+        // Supabase potrebbe restituire nomi di colonna con snake_case
+        const formattedProducts = data?.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          imageUrl: item.image_url, // Mappa image_url
+          contributedAmount: item.contributed_amount, // Mappa contributed_amount
+          category: item.category,
+        })) || [];
+        setProducts(formattedProducts);
+
+      } catch (err: any) {
+        console.error("Errore nel caricamento prodotti:", err);
+        setError("Impossibile caricare i prodotti. Riprova più tardi.");
+        showErrorToast("Errore nel caricamento dei prodotti.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   const handleContribute = (productId: string, method: string) => {
-    // Logica di contribuzione (placeholder)
     console.log(`Contributo per prodotto ${productId} con metodo ${method}`);
-    // Mostra un toast di successo (esempio)
     showSuccess(`Hai selezionato ${method} per il prodotto! (Funzionalità in sviluppo)`);
-    // Qui in futuro si aprirebbe un modale o si reindirizzerebbe al pagamento
   };
 
   return (
@@ -72,11 +75,31 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-8">
         <h2 className="text-3xl font-semibold text-center mb-10 text-gray-700">La Nostra Lista Nascita</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {sampleProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onContribute={handleContribute} />
-          ))}
-        </div>
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="flex flex-col space-y-3">
+                <Skeleton className="h-[200px] w-full rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ))}
+          </div>
+        )}
+        {error && <p className="text-center text-red-500">{error}</p>}
+        {!loading && !error && products.length === 0 && (
+          <p className="text-center text-gray-500">Nessun prodotto nella lista al momento.</p>
+        )}
+        {!loading && !error && products.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} onContribute={handleContribute} />
+            ))}
+          </div>
+        )}
       </main>
 
       <footer className="py-8 text-center text-gray-500">
