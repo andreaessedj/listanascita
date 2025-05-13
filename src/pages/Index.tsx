@@ -22,22 +22,6 @@ type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
-// Rimosso hook useWindowSize
-/*
-const useWindowSize = () => {
-  const [size, setSize] = useState([0, 0]);
-  useEffect(() => {
-    function updateSize() {
-      setSize([window.innerWidth, window.innerHeight]);
-    }
-    window.addEventListener('resize', updateSize);
-    updateSize();
-    return () => window.removeEventListener('change', updateSize);
-  }, []);
-  return size;
-}
-*/
-
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +37,9 @@ const Index = () => {
     product: Product | null;
   }>({ isOpen: false, product: null });
 
-  // Stati per l'ordinamento (default rimane createdAt desc per il fetch iniziale,
-  // ma la logica useMemo gestirà la priorità per completamento)
-  const [sortCriteria, setSortCriteria] = useState<SortCriteria>('createdAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  // Imposta l'ordinamento predefinito a prezzo crescente
+  const [sortCriteria, setSortCriteria] = useState<SortCriteria>('price');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -68,17 +51,6 @@ const Index = () => {
     },
   };
 
-  // Rimosso useEffect per cleanup confetti timeout
-  /*
-  useEffect(() => {
-    return () => {
-      if (confettiTimeoutRef.current) {
-        clearTimeout(confettiTimeoutRef.current);
-      }
-    };
-  }, []);
-  */
-
   useEffect(() => {
     const fetchProducts = async () => {
        setLoading(true);
@@ -87,7 +59,7 @@ const Index = () => {
         const { data, error: supabaseError } = await supabase
           .from('products')
           .select('*, image_urls')
-          .order('created_at', { ascending: false }); // Fetch iniziale per data creazione
+          .order('created_at', { ascending: false }); // Fetch iniziale per data creazione (verrà riordinato client-side)
 
         if (supabaseError) throw supabaseError;
 
@@ -123,7 +95,6 @@ const Index = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
 
-  // Aggiorna la firma per ricevere i nuovi dati
   const handleConfirmContribution = async (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => {
     const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
@@ -150,34 +121,24 @@ const Index = () => {
       showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
       handleCloseContributionModal();
 
-      // Rimosso codice attivazione confetti
-      /*
-      setShowConfetti(true);
-      if (confettiTimeoutRef.current) {
-        clearTimeout(confettiTimeoutRef.current);
-      }
-      confettiTimeoutRef.current = setTimeout(() => setShowConfetti(false), 5000);
-      */
-
-      // Chiama la Edge Function, passando i nuovi dati
-      console.log("Tentativo di chiamare la Edge Function per la notifica email..."); // Log prima della chiamata
+      console.log("Tentativo di chiamare la Edge Function per la notifica email...");
       try {
         const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
           body: {
             productName: currentProduct.name,
             contributionAmount: amount,
-            contributorName: contributorName, // Passa il nome
-            contributorSurname: contributorSurname, // Passa il cognome
-            message: message, // Passa il messaggio
+            contributorName: contributorName,
+            contributorSurname: contributorSurname,
+            message: message,
           },
         });
         if (functionError) {
-          console.error('Errore chiamata Edge Function:', functionError); // Log in caso di errore nella chiamata
+          console.error('Errore chiamata Edge Function:', functionError);
         } else {
-          console.log('Chiamata Edge Function completata (verifica i log di Supabase per l\'invio email).'); // Log successo chiamata
+          console.log('Chiamata Edge Function completata (verifica i log di Supabase per l\'invio email).');
         }
       } catch (invokeError) {
-        console.error('Errore imprevisto durante la chiamata Edge Function:', invokeError); // Log per errori imprevisti
+        console.error('Errore imprevisto durante la chiamata Edge Function:', invokeError);
       }
 
     } catch (err: any) {
@@ -194,7 +155,6 @@ const Index = () => {
     setDetailModalState({ isOpen: false, product: null });
   };
 
-  // Logica di ordinamento aggiornata
   const sortedProducts = useMemo(() => {
     let tempProducts = [...products];
 
@@ -202,12 +162,9 @@ const Index = () => {
       const isCompletedA = a.contributedAmount >= a.price;
       const isCompletedB = b.contributedAmount >= b.price;
 
-      // 1. Priorità: Non completati prima dei completati
-      if (!isCompletedA && isCompletedB) return -1; // A non completato, B completato -> A prima
-      if (isCompletedA && !isCompletedB) return 1;  // A completato, B non completato -> B prima
+      if (!isCompletedA && isCompletedB) return -1;
+      if (isCompletedA && !isCompletedB) return 1;
 
-      // 2. Se sono nello stesso gruppo (entrambi completati o entrambi non completati),
-      //    applica l'ordinamento selezionato dall'utente.
       let comparison = 0;
       if (sortCriteria === 'name') {
         comparison = a.name.localeCompare(b.name);
@@ -217,24 +174,19 @@ const Index = () => {
         comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       }
 
-      // Applica la direzione (asc/desc) al risultato della comparazione
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     return tempProducts;
-  }, [products, sortCriteria, sortDirection]); // Dipende da products e dai criteri di ordinamento
+  }, [products, sortCriteria, sortDirection]);
 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
-      {/* Rimosso rendering Confetti */}
-      {/* {showConfetti && <Confetti ... />} */}
-
       <header className="py-8 text-center relative z-10 bg-white/30 backdrop-blur-sm mb-4 shadow-sm">
          <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
-        {/* Applica la classe per l'effetto hover al logo */}
         <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600">
           Ilaria & Andrea
         </h1>
@@ -303,10 +255,8 @@ const Index = () => {
         )}
       </main>
 
-      {/* Footer con link admin */}
       <footer className="py-8 text-center text-gray-500 relative z-10">
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
-        {/* Link Admin posizionato in basso a destra */}
         <Link to="/admin" className="absolute bottom-2 right-4 text-xs text-gray-400 hover:text-gray-600 underline">
           Admin
         </Link>
