@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/email@v0.2.0/smtp.ts"; // Using a different SMTP library
+// Attempting to import from the main 'mod.ts' of the email module
+import { SmtpClient } from "https://deno.land/x/email@v0.2.0/mod.ts";
 
-console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP - deno.land/x/email). Import URL: https://deno.land/x/email@v0.2.0/smtp.ts`);
+console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP - deno.land/x/email). Import URL: https://deno.land/x/email@v0.2.0/mod.ts`);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,8 +93,8 @@ serve(async (req: Request) => {
     await smtpClient.connectTLS({
         hostname: "smtp.gmail.com",
         port: 465,
-        username: GMAIL_EMAIL,
-        password: GMAIL_APP_PASSWORD,
+        username: GMAIL_EMAIL, // Dal secret
+        password: GMAIL_APP_PASSWORD, // Dal secret
     });
     console.log(`[${new Date().toISOString()}] Connesso a Gmail SMTP con successo.`);
 
