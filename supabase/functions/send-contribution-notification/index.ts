@@ -64,9 +64,8 @@ serve(async (req: Request) => {
   } = requestData;
 
   if (!productName || typeof contributionAmount !== 'number' || !contributorName || !contributorSurname || !contributorEmail) {
-    console.error(`[${new Date().toISOString()}] Dati mancanti nel body. Campi richiesti: productName, contributionAmount (number), contributorName, contributorSurname, contributorEmail.`);
-    console.log(`[${new Date().toISOString()}] Dati ricevuti:`, { productName, contributionAmount, contributorName, contributorSurname, contributorEmail });
-    return new Response(JSON.stringify({ error: "Dati mancanti o tipo errato: productName, contributionAmount (deve essere numero), contributorName, contributorSurname e contributorEmail sono richiesti." }), {
+    console.error(`[${new Date().toISOString()}] Dati mancanti nel body.`);
+    return new Response(JSON.stringify({ error: "Dati mancanti o tipo errato." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -85,11 +84,14 @@ serve(async (req: Request) => {
     const resend = new Resend(RESEND_API_KEY);
     console.log(`[${new Date().toISOString()}] Oggetto Resend SDK inizializzato.`);
 
-    const adminRecipientEmail = "andreaesse@live.it";
+    const adminRecipientEmail = "andreaesse@live.it"; // Email a cui invii la notifica admin
+    const replyToEmail = "savarese.andrea@gmail.com"; // Email a cui i contributori risponderanno
+
     // IMPORTANTE: Sostituisci 'TUO_DOMINIO_VERIFICATO.com' con il tuo dominio effettivo verificato su Resend.
-    // Esempio: "noreply@lamialistanascita.com"
+    // Esempio: "noreply@lamialistanascita.com" o "regali@lamialistanascita.com"
     const senderEmail = "noreply@TUO_DOMINIO_VERIFICATO.com";
     console.log(`[${new Date().toISOString()}] Indirizzo mittente impostato a: ${senderEmail}`);
+    console.log(`[${new Date().toISOString()}] Indirizzo Reply-To impostato a: ${replyToEmail}`);
 
 
     // 1. Email di notifica agli admin
@@ -102,6 +104,7 @@ serve(async (req: Request) => {
       to: adminRecipientEmail,
       subject: adminSubject,
       html: adminHtmlBody,
+      reply_to: replyToEmail, // Anche per l'email admin, se vuoi che le risposte vadano al tuo Gmail
     });
 
     if (adminEmailResult.error) {
@@ -112,7 +115,7 @@ serve(async (req: Request) => {
 
     // 2. Email di ringraziamento al contributore
     const contributorSubject = `Grazie per il tuo contributo per ${productName}!`;
-    const contributorHtmlBody = `<h1>💖 Grazie ${contributorName}! 💖</h1><p>Ciao ${contributorName} ${contributorSurname},</p><p>Grazie per il tuo contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per <strong>${productName}</strong>.</p>${message ? `<p>Il tuo messaggio: "${message}"</p>` : ''}<p>Ricorda di completare il pagamento. Aggiorneremo lo stato del regalo una volta ricevuto.</p><p>Con affetto,<br/>Ilaria & Andrea</p><p><em>Messaggio automatico.</em></p>`;
+    const contributorHtmlBody = `<h1>💖 Grazie ${contributorName}! 💖</h1><p>Ciao ${contributorName} ${contributorSurname},</p><p>Grazie per il tuo contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per <strong>${productName}</strong>.</p>${message ? `<p>Il tuo messaggio: "${message}"</p>` : ''}<p>Ricorda di completare il pagamento. Aggiorneremo lo stato del regalo una volta ricevuto.</p><p>Con affetto,<br/>Ilaria & Andrea</p><p><em>Messaggio automatico. Per qualsiasi domanda, rispondi a questa email.</em></p>`;
 
     console.log(`[${new Date().toISOString()}] Tentativo invio email ringraziamento a ${contributorEmail}...`);
     const contributorEmailResult = await resend.emails.send({
@@ -120,6 +123,7 @@ serve(async (req: Request) => {
       to: contributorEmail,
       subject: contributorSubject,
       html: contributorHtmlBody,
+      reply_to: replyToEmail, // Qui è particolarmente utile
     });
 
     if (contributorEmailResult.error) {
