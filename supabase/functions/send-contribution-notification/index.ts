@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SMTPClient } from "https://deno.land/x/deno_smtp@v0.8.0/mod.ts"; // Importa la libreria SMTP
+// Tentativo con una versione più recente o l'URL base della libreria SMTP per Deno
+import { SMTPClient } from "https://deno.land/x/deno_smtp@v0.9.0/mod.ts";
 
-console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP Version).`);
+console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP Version). Import URL: https://deno.land/x/deno_smtp@v0.9.0/mod.ts`);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,23 +26,27 @@ serve(async (req: Request) => {
   let GMAIL_APP_PASSWORD: string | undefined;
 
   try {
-    console.log(`[${new Date().toISOString()}] Tentativo di leggere GMAIL_EMAIL e GMAIL_APP_PASSWORD dai secret.`);
+    console.log(`[${new Date().toISOString()}] Tentativo di leggere GMAIL_EMAIL e GMAIL_APP_PASSWORD dai secret Deno.env.`);
     GMAIL_EMAIL = Deno.env.get("GMAIL_EMAIL");
     GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
 
-    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
-      console.error(`[${new Date().toISOString()}] ERRORE CRITICO: GMAIL_EMAIL o GMAIL_APP_PASSWORD non trovati nei secret.`);
-      return new Response(JSON.stringify({ error: "Configurazione del server (Credenziali Gmail) incompleta." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (!GMAIL_EMAIL) {
+      console.error(`[${new Date().toISOString()}] ERRORE CRITICO: Secret GMAIL_EMAIL non trovato.`);
+      return new Response(JSON.stringify({ error: "Configurazione del server (GMAIL_EMAIL) incompleta." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log(`[${new Date().toISOString()}] Credenziali Gmail lette con successo.`);
+    if (!GMAIL_APP_PASSWORD) {
+      console.error(`[${new Date().toISOString()}] ERRORE CRITICO: Secret GMAIL_APP_PASSWORD non trovato.`);
+      return new Response(JSON.stringify({ error: "Configurazione del server (GMAIL_APP_PASSWORD) incompleta." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.log(`[${new Date().toISOString()}] Secret GMAIL_EMAIL (${GMAIL_EMAIL}) e GMAIL_APP_PASSWORD (presente) letti con successo.`);
   } catch (envError) {
-    console.error(`[${new Date().toISOString()}] ERRORE CRITICO durante la lettura dei secret Gmail:`, envError);
+    console.error(`[${new Date().toISOString()}] ERRORE CRITICO durante la lettura dei secret Deno.env:`, envError);
     return new Response(JSON.stringify({ error: "Errore interno del server durante l'accesso alla configurazione." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
   }
 
@@ -49,12 +54,11 @@ serve(async (req: Request) => {
   try {
     console.log(`[${new Date().toISOString()}] Tentativo di fare il parsing del corpo della richiesta JSON.`);
     requestData = await req.json();
-    console.log(`[${new Date().toISOString()}] Corpo richiesta parsato:`, requestData);
+    console.log(`[${new Date().toISOString()}] Corpo richiesta parsato:`, JSON.stringify(requestData));
   } catch (parseError) {
     console.error(`[${new Date().toISOString()}] Errore parsing corpo richiesta JSON:`, parseError);
     return new Response(JSON.stringify({ error: "Corpo della richiesta malformato o non JSON." }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -68,18 +72,16 @@ serve(async (req: Request) => {
   } = requestData;
 
   if (!productName || typeof contributionAmount !== 'number' || !contributorName || !contributorSurname || !contributorEmail) {
-    console.error(`[${new Date().toISOString()}] Dati mancanti nel body.`);
-    return new Response(JSON.stringify({ error: "Dati mancanti o tipo errato." }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.error(`[${new Date().toISOString()}] Dati mancanti nel body. Ricevuto:`, JSON.stringify(requestData));
+    return new Response(JSON.stringify({ error: "Dati mancanti o tipo errato. Campi richiesti: productName, contributionAmount (numero), contributorName, contributorSurname, contributorEmail." }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!isValidEmailFn(contributorEmail)) {
       console.error(`[${new Date().toISOString()}] Indirizzo email del contributore non valido:`, contributorEmail);
       return new Response(JSON.stringify({ error: "Indirizzo email del contributore non valido." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
   }
   console.log(`[${new Date().toISOString()}] Dati validati con successo.`);
@@ -87,41 +89,39 @@ serve(async (req: Request) => {
   const smtpClient = new SMTPClient({
     connection: {
       hostname: "smtp.gmail.com",
-      port: 465, // SSL
-      tls: true, // Per Gmail con porta 465, la connessione è TLS dall'inizio
+      port: 465,
+      tls: true,
       auth: {
-        username: GMAIL_EMAIL,
-        password: GMAIL_APP_PASSWORD,
+        username: GMAIL_EMAIL, // Dal secret
+        password: GMAIL_APP_PASSWORD, // Dal secret
       },
     },
-    debug: { // Abilita log dettagliati dalla libreria SMTP
-        allowUnsecureConnection: false, // Non permettere connessioni non sicure
-        logFine: true, // Log dettagliati
-        logRaw: false, // Non loggare i dati grezzi (potrebbe esporre password se abilitato)
+    debug: {
+        allowUnsecureConnection: false,
+        logFine: true, // Log dettagliati della libreria SMTP
+        logRaw: false,
     }
   });
+  console.log(`[${new Date().toISOString()}] Client SMTP per Gmail configurato. Tentativo di connessione...`);
 
-  console.log(`[${new Date().toISOString()}] Client SMTP per Gmail configurato.`);
-
-  // Definisci il mittente (il tuo indirizzo Gmail)
-  // Puoi aggiungere un nome visualizzato se lo desideri
-  const fromEmailAddress = `Ilaria & Andrea <${GMAIL_EMAIL}>`;
+  // Definisci il mittente (il tuo indirizzo Gmail con un nome visualizzato)
+  const fromEmailAddress = `Ilaria & Andrea Lista Nascita <${GMAIL_EMAIL}>`;
 
   // 1. Email di notifica agli admin (a te stesso)
-  const adminSubject = `Nuovo Contributo Ricevuto per ${productName}! (Lista Nascita)`;
-  const adminHtmlBody = `<h1>🎉 Nuovo Contributo! 🎉</h1><p>Ciao!</p><p>Hai ricevuto un nuovo contributo per il prodotto: <strong>${productName}</strong>.</p><p>Importo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p><p>Da: <strong>${contributorName} ${contributorSurname}</strong> (Email: ${contributorEmail})</p>${message ? `<p>Messaggio: ${message}</p>` : ''}<p><em>Messaggio automatico dalla tua Lista Nascita.</em></p>`;
+  const adminSubject = `Nuovo Contributo per ${productName}! (Lista Nascita)`;
+  const adminHtmlBody = `<h1>🎉 Nuovo Contributo! 🎉</h1><p>Ciao!</p><p>Hai ricevuto un nuovo contributo per: <strong>${productName}</strong>.</p><p>Importo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p><p>Da: <strong>${contributorName} ${contributorSurname}</strong> (Email: ${contributorEmail})</p>${message ? `<p>Messaggio: ${message}</p>` : ''}<p><em>Messaggio automatico.</em></p>`;
 
   try {
     console.log(`[${new Date().toISOString()}] Tentativo invio email admin a ${GMAIL_EMAIL}...`);
     await smtpClient.send({
       from: fromEmailAddress,
-      to: GMAIL_EMAIL, // Invia a te stesso
+      to: GMAIL_EMAIL,
       subject: adminSubject,
       html: adminHtmlBody,
     });
     console.log(`[${new Date().toISOString()}] Email admin inviata con successo a ${GMAIL_EMAIL}.`);
   } catch (adminEmailError) {
-    console.error(`[${new Date().toISOString()}] ERRORE invio email admin con Gmail SMTP:`, adminEmailError);
+    console.error(`[${new Date().toISOString()}] ERRORE invio email admin con Gmail SMTP:`, adminEmailError.message, adminEmailError.stack);
     // Non bloccare l'invio al contributore se questa fallisce, ma logga
   }
 
@@ -132,31 +132,34 @@ serve(async (req: Request) => {
   try {
     console.log(`[${new Date().toISOString()}] Tentativo invio email ringraziamento a ${contributorEmail}...`);
     await smtpClient.send({
-      from: fromEmailAddress, // Inviato dal tuo indirizzo Gmail
+      from: fromEmailAddress,
       to: contributorEmail,
       subject: contributorSubject,
       html: contributorHtmlBody,
     });
     console.log(`[${new Date().toISOString()}] Email ringraziamento inviata con successo a ${contributorEmail}.`);
     
-    await smtpClient.close(); // Chiudi la connessione SMTP
+    console.log(`[${new Date().toISOString()}] Chiusura connessione SMTP...`);
+    await smtpClient.close();
     console.log(`[${new Date().toISOString()}] Connessione SMTP chiusa.`);
 
     return new Response(JSON.stringify({ message: "Notifiche inviate con successo tramite Gmail!" }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (contributorEmailError) {
-    console.error(`[${new Date().toISOString()}] ERRORE invio email ringraziamento a ${contributorEmail} con Gmail SMTP:`, contributorEmailError);
-    await smtpClient.close(); // Assicurati di chiudere la connessione anche in caso di errore
-    console.log(`[${new Date().toISOString()}] Connessione SMTP chiusa dopo errore.`);
+    console.error(`[${new Date().toISOString()}] ERRORE invio email ringraziamento a ${contributorEmail} con Gmail SMTP:`, contributorEmailError.message, contributorEmailError.stack);
+    try {
+      await smtpClient.close();
+      console.log(`[${new Date().toISOString()}] Connessione SMTP chiusa dopo errore invio email contributore.`);
+    } catch (closeError) {
+      console.error(`[${new Date().toISOString()}] Errore durante la chiusura della connessione SMTP dopo un altro errore:`, closeError);
+    }
     return new Response(JSON.stringify({
       message: "Errore durante l'invio dell'email di conferma al contributore tramite Gmail.",
       errorDetails: contributorEmailError.message || "Errore SMTP sconosciuto"
     }), {
-      status: 500, // Errore server se l'email principale fallisce
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
