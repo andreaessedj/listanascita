@@ -119,7 +119,7 @@ const Index = () => {
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
     setContributionModalState({ isOpen: true, product, paymentMethod: method });
   };
-  const handleCloseContributeModal = () => {
+  const handleCloseContributionModal = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
 
