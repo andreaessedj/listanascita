@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@3.4.0";
+import { SMTPClient } from "https://deno.land/x/deno_smtp@v0.8.0/mod.ts"; // Importa la libreria SMTP
 
-console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification. Resend SDK importato (o tentato).`);
+console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP Version).`);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,20 +21,24 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  let RESEND_API_KEY: string | undefined;
+  let GMAIL_EMAIL: string | undefined;
+  let GMAIL_APP_PASSWORD: string | undefined;
+
   try {
-    console.log(`[${new Date().toISOString()}] Tentativo di leggere RESEND_API_KEY dal Deno.env.`);
-    RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      console.error(`[${new Date().toISOString()}] ERRORE CRITICO: RESEND_API_KEY non trovata nei secret di Deno.env.`);
-      return new Response(JSON.stringify({ error: "Configurazione del server (API Key) incompleta." }), {
+    console.log(`[${new Date().toISOString()}] Tentativo di leggere GMAIL_EMAIL e GMAIL_APP_PASSWORD dai secret.`);
+    GMAIL_EMAIL = Deno.env.get("GMAIL_EMAIL");
+    GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+
+    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
+      console.error(`[${new Date().toISOString()}] ERRORE CRITICO: GMAIL_EMAIL o GMAIL_APP_PASSWORD non trovati nei secret.`);
+      return new Response(JSON.stringify({ error: "Configurazione del server (Credenziali Gmail) incompleta." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log(`[${new Date().toISOString()}] RESEND_API_KEY letta con successo (lunghezza: ${RESEND_API_KEY.length}).`);
+    console.log(`[${new Date().toISOString()}] Credenziali Gmail lette con successo.`);
   } catch (envError) {
-    console.error(`[${new Date().toISOString()}] ERRORE CRITICO durante la lettura di Deno.env:`, envError);
+    console.error(`[${new Date().toISOString()}] ERRORE CRITICO durante la lettura dei secret Gmail:`, envError);
     return new Response(JSON.stringify({ error: "Errore interno del server durante l'accesso alla configurazione." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -80,78 +84,78 @@ serve(async (req: Request) => {
   }
   console.log(`[${new Date().toISOString()}] Dati validati con successo.`);
 
+  const smtpClient = new SMTPClient({
+    connection: {
+      hostname: "smtp.gmail.com",
+      port: 465, // SSL
+      tls: true, // Per Gmail con porta 465, la connessione è TLS dall'inizio
+      auth: {
+        username: GMAIL_EMAIL,
+        password: GMAIL_APP_PASSWORD,
+      },
+    },
+    debug: { // Abilita log dettagliati dalla libreria SMTP
+        allowUnsecureConnection: false, // Non permettere connessioni non sicure
+        logFine: true, // Log dettagliati
+        logRaw: false, // Non loggare i dati grezzi (potrebbe esporre password se abilitato)
+    }
+  });
+
+  console.log(`[${new Date().toISOString()}] Client SMTP per Gmail configurato.`);
+
+  // Definisci il mittente (il tuo indirizzo Gmail)
+  // Puoi aggiungere un nome visualizzato se lo desideri
+  const fromEmailAddress = `Ilaria & Andrea <${GMAIL_EMAIL}>`;
+
+  // 1. Email di notifica agli admin (a te stesso)
+  const adminSubject = `Nuovo Contributo Ricevuto per ${productName}! (Lista Nascita)`;
+  const adminHtmlBody = `<h1>🎉 Nuovo Contributo! 🎉</h1><p>Ciao!</p><p>Hai ricevuto un nuovo contributo per il prodotto: <strong>${productName}</strong>.</p><p>Importo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p><p>Da: <strong>${contributorName} ${contributorSurname}</strong> (Email: ${contributorEmail})</p>${message ? `<p>Messaggio: ${message}</p>` : ''}<p><em>Messaggio automatico dalla tua Lista Nascita.</em></p>`;
+
   try {
-    const resend = new Resend(RESEND_API_KEY);
-    console.log(`[${new Date().toISOString()}] Oggetto Resend SDK inizializzato.`);
-
-    const adminRecipientEmail = "andreaesse@live.it"; // Email a cui invii la notifica admin
-    const replyToEmail = "savarese.andrea@gmail.com"; // Email a cui i contributori risponderanno
-
-    // IMPORTANTE: Sostituisci 'TUO_DOMINIO_VERIFICATO.com' con il tuo dominio effettivo verificato su Resend.
-    // Esempio: "noreply@lamialistanascita.com" o "regali@lamialistanascita.com"
-    const senderEmail = "noreply@TUO_DOMINIO_VERIFICATO.com";
-    console.log(`[${new Date().toISOString()}] Indirizzo mittente impostato a: ${senderEmail}`);
-    console.log(`[${new Date().toISOString()}] Indirizzo Reply-To impostato a: ${replyToEmail}`);
-
-
-    // 1. Email di notifica agli admin
-    const adminSubject = `Nuovo Contributo Ricevuto per ${productName}!`;
-    const adminHtmlBody = `<h1>🎉 Nuovo Contributo! 🎉</h1><p>Ciao!</p><p>Hai ricevuto un nuovo contributo per il prodotto: <strong>${productName}</strong>.</p><p>Importo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p><p>Da: <strong>${contributorName} ${contributorSurname}</strong> (Email: ${contributorEmail})</p>${message ? `<p>Messaggio: ${message}</p>` : ''}<p><em>Messaggio automatico.</em></p>`;
-
-    console.log(`[${new Date().toISOString()}] Tentativo invio email admin a ${adminRecipientEmail}...`);
-    const adminEmailResult = await resend.emails.send({
-      from: senderEmail,
-      to: adminRecipientEmail,
+    console.log(`[${new Date().toISOString()}] Tentativo invio email admin a ${GMAIL_EMAIL}...`);
+    await smtpClient.send({
+      from: fromEmailAddress,
+      to: GMAIL_EMAIL, // Invia a te stesso
       subject: adminSubject,
       html: adminHtmlBody,
-      reply_to: replyToEmail, // Anche per l'email admin, se vuoi che le risposte vadano al tuo Gmail
     });
+    console.log(`[${new Date().toISOString()}] Email admin inviata con successo a ${GMAIL_EMAIL}.`);
+  } catch (adminEmailError) {
+    console.error(`[${new Date().toISOString()}] ERRORE invio email admin con Gmail SMTP:`, adminEmailError);
+    // Non bloccare l'invio al contributore se questa fallisce, ma logga
+  }
 
-    if (adminEmailResult.error) {
-      console.error(`[${new Date().toISOString()}] ERRORE invio email admin con Resend:`, JSON.stringify(adminEmailResult.error));
-    } else {
-      console.log(`[${new Date().toISOString()}] Email admin inviata con successo. ID: ${adminEmailResult.data?.id}`);
-    }
+  // 2. Email di ringraziamento al contributore
+  const contributorSubject = `Grazie per il tuo contributo per ${productName}! (Lista Nascita Ilaria & Andrea)`;
+  const contributorHtmlBody = `<h1>💖 Grazie ${contributorName}! 💖</h1><p>Ciao ${contributorName} ${contributorSurname},</p><p>Grazie di cuore per il tuo contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per <strong>${productName}</strong>.</p>${message ? `<p>Il tuo messaggio per noi: "${message}"</p>` : ''}<p>Ricorda di completare il pagamento seguendo le istruzioni che hai visualizzato. Aggiorneremo lo stato del regalo una volta ricevuto.</p><p>Con affetto,<br/>Ilaria & Andrea</p><p><em>Messaggio automatico. Per qualsiasi domanda, rispondi pure a questa email.</em></p>`;
 
-    // 2. Email di ringraziamento al contributore
-    const contributorSubject = `Grazie per il tuo contributo per ${productName}!`;
-    const contributorHtmlBody = `<h1>💖 Grazie ${contributorName}! 💖</h1><p>Ciao ${contributorName} ${contributorSurname},</p><p>Grazie per il tuo contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per <strong>${productName}</strong>.</p>${message ? `<p>Il tuo messaggio: "${message}"</p>` : ''}<p>Ricorda di completare il pagamento. Aggiorneremo lo stato del regalo una volta ricevuto.</p><p>Con affetto,<br/>Ilaria & Andrea</p><p><em>Messaggio automatico. Per qualsiasi domanda, rispondi a questa email.</em></p>`;
-
+  try {
     console.log(`[${new Date().toISOString()}] Tentativo invio email ringraziamento a ${contributorEmail}...`);
-    const contributorEmailResult = await resend.emails.send({
-      from: senderEmail,
+    await smtpClient.send({
+      from: fromEmailAddress, // Inviato dal tuo indirizzo Gmail
       to: contributorEmail,
       subject: contributorSubject,
       html: contributorHtmlBody,
-      reply_to: replyToEmail, // Qui è particolarmente utile
     });
+    console.log(`[${new Date().toISOString()}] Email ringraziamento inviata con successo a ${contributorEmail}.`);
+    
+    await smtpClient.close(); // Chiudi la connessione SMTP
+    console.log(`[${new Date().toISOString()}] Connessione SMTP chiusa.`);
 
-    if (contributorEmailResult.error) {
-      console.error(`[${new Date().toISOString()}] ERRORE invio email ringraziamento a ${contributorEmail} con Resend:`, JSON.stringify(contributorEmailResult.error));
-      return new Response(JSON.stringify({
-        message: "Notifica admin processata (controlla log per esito), ma errore invio email conferma al contributore.",
-        adminEmailId: adminEmailResult.data?.id,
-        contributorEmailError: contributorEmailResult.error.message
-      }), {
-        status: 207,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log(`[${new Date().toISOString()}] Email ringraziamento inviata con successo a ${contributorEmail}. ID: ${contributorEmailResult.data?.id}`);
-    return new Response(JSON.stringify({
-        message: "Notifiche inviate con successo!",
-        adminEmailId: adminEmailResult.data?.id,
-        contributorEmailId: contributorEmailResult.data?.id
-    }), {
+    return new Response(JSON.stringify({ message: "Notifiche inviate con successo tramite Gmail!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (e) {
-    console.error(`[${new Date().toISOString()}] ERRORE CATTURATO nel blocco try/catch principale della funzione:`, e.toString(), e.stack);
-    return new Response(JSON.stringify({ error: e.message || "Errore interno del server durante l'elaborazione." }), {
-      status: 500,
+  } catch (contributorEmailError) {
+    console.error(`[${new Date().toISOString()}] ERRORE invio email ringraziamento a ${contributorEmail} con Gmail SMTP:`, contributorEmailError);
+    await smtpClient.close(); // Assicurati di chiudere la connessione anche in caso di errore
+    console.log(`[${new Date().toISOString()}] Connessione SMTP chiusa dopo errore.`);
+    return new Response(JSON.stringify({
+      message: "Errore durante l'invio dell'email di conferma al contributore tramite Gmail.",
+      errorDetails: contributorEmailError.message || "Errore SMTP sconosciuto"
+    }), {
+      status: 500, // Errore server se l'email principale fallisce
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
