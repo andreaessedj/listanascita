@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'; // Mantenuto useRef per ora, anche se non usato
+import { useEffect, useState, useMemo, useRef } from 'react';
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Link } from 'react-router-dom'; // Importa Link
+import { Link } from 'react-router-dom';
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt';
@@ -37,7 +37,6 @@ const Index = () => {
     product: Product | null;
   }>({ isOpen: false, product: null });
 
-  // Imposta l'ordinamento predefinito a prezzo crescente
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('price');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -59,7 +58,7 @@ const Index = () => {
         const { data, error: supabaseError } = await supabase
           .from('products')
           .select('*, image_urls')
-          .order('created_at', { ascending: false }); // Fetch iniziale per data creazione (verrà riordinato client-side)
+          .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
 
@@ -95,7 +94,14 @@ const Index = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
   };
 
-  const handleConfirmContribution = async (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => {
+  const handleConfirmContribution = async (
+    productId: string,
+    amount: number,
+    contributorName: string,
+    contributorSurname: string,
+    contributorEmail: string, // Accetta contributorEmail
+    message: string
+  ) => {
     const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
@@ -118,7 +124,7 @@ const Index = () => {
             : p
         )
       );
-      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille!`);
+      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille! Riceverai una mail di conferma.`);
       handleCloseContributionModal();
 
       console.log("Tentativo di chiamare la Edge Function per la notifica email...");
@@ -129,6 +135,7 @@ const Index = () => {
             contributionAmount: amount,
             contributorName: contributorName,
             contributorSurname: contributorSurname,
+            contributorEmail: contributorEmail, // Passa contributorEmail
             message: message,
           },
         });
@@ -144,7 +151,7 @@ const Index = () => {
     } catch (err: any) {
       console.error("Errore durante la conferma del contributo:", err);
       showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      throw err;
+      throw err; // Rilancia l'errore per essere gestito dal chiamante (ContributionModal)
     }
   };
 

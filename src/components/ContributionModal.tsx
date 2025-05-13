@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // Assicurati che useEffect sia importato
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,14 +14,21 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
+import { Terminal, Mail } from "lucide-react"; // Aggiunto Mail icon
 
 interface ContributionModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
-  onConfirmContribution: (productId: string, amount: number, contributorName: string, contributorSurname: string, message: string) => Promise<void>;
+  onConfirmContribution: (
+    productId: string,
+    amount: number,
+    contributorName: string,
+    contributorSurname: string,
+    contributorEmail: string, // Aggiunto contributorEmail
+    message: string
+  ) => Promise<void>;
   paymentDetails: {
     paypal: string;
     satispay: string;
@@ -40,24 +47,23 @@ const ContributionModal = ({
   const [amount, setAmount] = useState<number | string>('');
   const [contributorName, setContributorName] = useState('');
   const [contributorSurname, setContributorSurname] = useState('');
+  const [contributorEmail, setContributorEmail] = useState(''); // Nuovo stato per l'email
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Usa useEffect per resettare lo stato quando il modale si apre con un nuovo prodotto/metodo
   useEffect(() => {
     if (isOpen) {
       setAmount('');
       setContributorName('');
       setContributorSurname('');
+      setContributorEmail(''); // Resetta email
       setMessage('');
       setError(null);
       setIsLoading(false);
     }
-    // Questo useEffect non ha bisogno di un cleanup specifico in questo caso
-  }, [isOpen, product, paymentMethod]); // Dipendenze: si attiva quando isOpen, product o paymentMethod cambiano
+  }, [isOpen, product, paymentMethod]);
 
-  // Early return se il modale non deve essere visibile
   if (!isOpen || !product || !paymentMethod) {
       return null;
   }
@@ -78,6 +84,11 @@ const ContributionModal = ({
     }
   };
 
+  const isValidEmail = (email: string) => {
+    // Semplice regex per validazione email
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleConfirm = async () => {
     const contributionAmount = parseFloat(amount.toString());
     const epsilon = 0.001;
@@ -89,16 +100,28 @@ const ContributionModal = ({
         setError("Nome e Cognome sono obbligatori.");
         return;
     }
+    if (!contributorEmail.trim() || !isValidEmail(contributorEmail)) {
+        setError("Inserisci un indirizzo email valido.");
+        return;
+    }
 
     setError(null);
     setIsLoading(true);
     try {
-      await onConfirmContribution(product.id, contributionAmount, contributorName.trim(), contributorSurname.trim(), message.trim());
+      await onConfirmContribution(
+        product.id,
+        contributionAmount,
+        contributorName.trim(),
+        contributorSurname.trim(),
+        contributorEmail.trim(), // Passa l'email
+        message.trim()
+      );
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
       setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      setIsLoading(false);
+      setIsLoading(false); // Assicurati che isLoading sia false in caso di errore
     }
+    // isLoading sarà gestito dalla funzione chiamante o da un eventuale finally block se necessario
   };
 
   const getPaymentInstructions = () => {
@@ -168,7 +191,6 @@ const ContributionModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* La key è ancora utile per forzare il remount in alcuni casi, la manteniamo */}
       <DialogContent key={product.id + '-' + paymentMethod} className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Contribuisci per: {product.name}</DialogTitle>
@@ -179,7 +201,6 @@ const ContributionModal = ({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {/* Campi Nome e Cognome */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="contributorName" className="text-right">
               Nome*
@@ -206,8 +227,25 @@ const ContributionModal = ({
               disabled={calculatedRemaining <= 0}
             />
           </div>
+          {/* Campo Email Contributore */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contributorEmail" className="text-right">
+              Email*
+            </Label>
+            <div className="col-span-3 relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                id="contributorEmail"
+                type="email"
+                value={contributorEmail}
+                onChange={(e) => setContributorEmail(e.target.value)}
+                className="pl-10" // Padding per l'icona
+                placeholder="latua@email.com"
+                disabled={calculatedRemaining <= 0}
+                />
+            </div>
+          </div>
 
-          {/* Campo Importo */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
               Importo (€)*
@@ -226,7 +264,6 @@ const ContributionModal = ({
             />
           </div>
 
-          {/* Campo Messaggio (Opzionale) */}
            <div className="grid grid-cols-4 items-start gap-4">
             <Label htmlFor="message" className="text-right pt-2">
               Messaggio
@@ -258,7 +295,7 @@ const ContributionModal = ({
           )}
 
            <p className="text-xs text-gray-500 mt-2 text-center">
-             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", procedi con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto."}
+             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", riceverai una mail di riepilogo e potrai procedere con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto."}
            </p>
         </div>
         <DialogFooter>
@@ -270,7 +307,16 @@ const ContributionModal = ({
           <Button
              type="button"
              onClick={handleConfirm}
-             disabled={isLoading || !amount || parseFloat(amount.toString()) <= 0 || calculatedRemaining <= 0 || !contributorName.trim() || !contributorSurname.trim()} // Disabilita se campi obbligatori vuoti
+             disabled={
+                isLoading ||
+                !amount ||
+                parseFloat(amount.toString()) <= 0 ||
+                calculatedRemaining <= 0 ||
+                !contributorName.trim() ||
+                !contributorSurname.trim() ||
+                !contributorEmail.trim() || // Disabilita se email vuota
+                !isValidEmail(contributorEmail) // Disabilita se email non valida
+            }
            >
             {isLoading ? 'Confermando...' : 'Conferma Contributo'}
           </Button>
