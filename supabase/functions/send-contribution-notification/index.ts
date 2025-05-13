@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-// Prova a importare Resend. Se questo import causa un crash immediato, lo vedremo perché i log successivi non appariranno.
 import { Resend } from "npm:resend@3.4.0";
 
 console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification. Resend SDK importato (o tentato).`);
@@ -83,11 +82,15 @@ serve(async (req: Request) => {
   console.log(`[${new Date().toISOString()}] Dati validati con successo.`);
 
   try {
-    const resend = new Resend(RESEND_API_KEY); // RESEND_API_KEY è sicuramente definita qui
+    const resend = new Resend(RESEND_API_KEY);
     console.log(`[${new Date().toISOString()}] Oggetto Resend SDK inizializzato.`);
 
     const adminRecipientEmail = "andreaesse@live.it";
-    const senderEmail = "onboarding@resend.dev";
+    // IMPORTANTE: Sostituisci 'TUO_DOMINIO_VERIFICATO.com' con il tuo dominio effettivo verificato su Resend.
+    // Esempio: "noreply@lamialistanascita.com"
+    const senderEmail = "noreply@TUO_DOMINIO_VERIFICATO.com";
+    console.log(`[${new Date().toISOString()}] Indirizzo mittente impostato a: ${senderEmail}`);
+
 
     // 1. Email di notifica agli admin
     const adminSubject = `Nuovo Contributo Ricevuto per ${productName}!`;
@@ -103,7 +106,6 @@ serve(async (req: Request) => {
 
     if (adminEmailResult.error) {
       console.error(`[${new Date().toISOString()}] ERRORE invio email admin con Resend:`, JSON.stringify(adminEmailResult.error));
-      // Non bloccare, ma logga
     } else {
       console.log(`[${new Date().toISOString()}] Email admin inviata con successo. ID: ${adminEmailResult.data?.id}`);
     }
@@ -127,7 +129,7 @@ serve(async (req: Request) => {
         adminEmailId: adminEmailResult.data?.id,
         contributorEmailError: contributorEmailResult.error.message
       }), {
-        status: 207, // Multi-Status
+        status: 207,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
