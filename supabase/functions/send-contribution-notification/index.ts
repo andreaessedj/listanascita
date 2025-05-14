@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-// Attempting to import from the main 'mod.ts' of the email module
 import { SmtpClient } from "https://deno.land/x/email@v0.2.0/mod.ts";
 
 console.log(`[${new Date().toISOString()}] SCRIPT CARICATO: send-contribution-notification (Gmail SMTP - deno.land/x/email). Import URL: https://deno.land/x/email@v0.2.0/mod.ts`);
@@ -98,7 +97,8 @@ serve(async (req: Request) => {
     });
     console.log(`[${new Date().toISOString()}] Connesso a Gmail SMTP con successo.`);
 
-    const fromEmailAddress = `Ilaria & Andrea Lista Nascita <${GMAIL_EMAIL}>`;
+    // Utilizza solo l'indirizzo email per il campo 'from'
+    const fromEmailAddress = GMAIL_EMAIL;
 
     // 1. Email di notifica agli admin (a te stesso)
     const adminSubject = `Nuovo Contributo per ${productName}! (Lista Nascita)`;
@@ -106,7 +106,7 @@ serve(async (req: Request) => {
 
     console.log(`[${new Date().toISOString()}] Tentativo invio email admin a ${GMAIL_EMAIL}...`);
     await smtpClient.send({
-      from: fromEmailAddress,
+      from: fromEmailAddress, // Usa solo l'email
       to: GMAIL_EMAIL,
       subject: adminSubject,
       html: adminHtmlBody,
@@ -119,7 +119,7 @@ serve(async (req: Request) => {
 
     console.log(`[${new Date().toISOString()}] Tentativo invio email ringraziamento a ${contributorEmail}...`);
     await smtpClient.send({
-      from: fromEmailAddress,
+      from: fromEmailAddress, // Usa solo l'email
       to: contributorEmail,
       subject: contributorSubject,
       html: contributorHtmlBody,
