@@ -7,14 +7,14 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log("Edge Function 'send-contribution-notification' invoked."); // Log all'inizio
+  console.log("Edge Function 'send-contribution-notification' invoked.");
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Attempting to read Gmail credentials..."); // Log prima di leggere le credenziali
+    console.log("Attempting to read Gmail credentials...");
     const GMAIL_USER = Deno.env.get("GMAIL_USER");
     const GMAIL_PASS = Deno.env.get("GMAIL_PASS");
     if (!GMAIL_USER || !GMAIL_PASS) {
@@ -24,7 +24,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log("Gmail credentials read successfully."); // Log dopo aver letto le credenziali
+    console.log("Gmail credentials read successfully.");
 
     const transporter = createTransport({
       service: "gmail",
@@ -34,52 +34,79 @@ serve(async (req) => {
       },
     });
 
-    console.log("Attempting to parse request body..."); // Log prima di leggere il body
-    const { productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message } = await req.json(); // Aggiunto contributorEmail
-    console.log("Request body parsed:", { productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message }); // Log dopo aver letto il body
+    console.log("Attempting to parse request body...");
+    const { productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message } = await req.json();
+    console.log("Request body parsed:", { productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message });
 
-    if (!productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname || !contributorEmail) { // Aggiunto check per contributorEmail
-      console.error("Dati mancanti nel body."); // Log per dati mancanti
+    if (!productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname || !contributorEmail) {
+      console.error("Dati mancanti nel body.");
       return new Response(JSON.stringify({ error: "Dati mancanti: productName, contributionAmount, contributorName, contributorSurname e contributorEmail sono richiesti." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const recipientEmail = "andreaesse@live.it"; // Email destinatario
-    // Corretto il formato dell'email del mittente
+    const ownerEmail = "andreaesse@live.it"; // Email destinatario (proprietario lista)
     const senderEmail = `Ilaria & Andrea <${GMAIL_USER}>`; // Email mittente con nome
 
-    const subject = `Nuovo Contributo Ricevuto per ${productName}!`;
-    const htmlBody = `
+    // --- Email di Notifica al Proprietario ---
+    const ownerSubject = `Nuovo Contributo Ricevuto per ${productName}!`;
+    const ownerHtmlBody = `
       <h1>🎉 Nuovo Contributo! 🎉</h1>
       <p>Ciao!</p>
       <p>Hai ricevuto un nuovo contributo per il prodotto: <strong>${productName}</strong>.</p>
       <p>Importo del contributo: <strong>€${contributionAmount.toFixed(2)}</strong>.</p>
       <p>Da: <strong>${contributorName} ${contributorSurname}</strong></p>
-      <p>Email del contributore: <strong>${contributorEmail}</strong></p> <!-- Aggiunto email del contributore -->
-      ${message ? `<p>Messaggio: ${message}</p>` : ''} <!-- Includi il messaggio se presente -->
+      <p>Email del contributore: <strong>${contributorEmail}</strong></p>
+      ${message ? `<p>Messaggio: ${message}</p>` : ''}
       <p>Controlla la tua lista nascita per i dettagli.</p>
       <br/>
       <p><em>Questo è un messaggio automatico.</em></p>
     `;
 
-    console.log("Attempting to send email via Gmail..."); // Log prima di inviare l'email
-    const info = await transporter.sendMail({
-      from: senderEmail, // Usa il formato corretto
-      to: recipientEmail,
-      subject: subject,
-      html: htmlBody,
+    console.log("Attempting to send notification email to owner...");
+    const ownerMailInfo = await transporter.sendMail({
+      from: senderEmail,
+      to: ownerEmail,
+      subject: ownerSubject,
+      html: ownerHtmlBody,
     });
+    console.log("Notification email sent to owner:", ownerMailInfo.messageId);
 
-    console.log("Email inviata con successo:", info.messageId); // Log successo invio
-    return new Response(JSON.stringify({ message: "Notifica inviata con successo!", emailId: info.messageId }), {
+    // --- Email di Ringraziamento al Contributore ---
+    const contributorSubject = `Grazie per il tuo Contributo alla Lista Nascita di Ilaria & Andrea!`;
+    const contributorHtmlBody = `
+      <h1>Grazie di Cuore per il tuo Contributo! ❤️</h1>
+      <p>Ciao ${contributorName},</p>
+      <p>Volevamo ringraziarti tantissimo per il tuo generoso contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per il prodotto <strong>"${productName}"</strong> dalla nostra lista nascita.</p>
+      <p>Il tuo supporto significa molto per noi in questo momento speciale.</p>
+      ${message ? `<p>Abbiamo ricevuto anche il tuo messaggio: "${message}"</p>` : ''}
+      <p>L'importo totale contribuito per questo regalo verrà aggiornato manualmente sulla lista non appena riceveremo il pagamento.</p>
+      <p>Grazie ancora per la tua gentilezza!</p>
+      <br/>
+      <p>Con affetto,</p>
+      <p>Ilaria & Andrea</p>
+      <br/>
+      <p><em>Questo è un messaggio automatico.</em></p>
+    `;
+
+    console.log("Attempting to send thank you email to contributor...");
+    const contributorMailInfo = await transporter.sendMail({
+      from: senderEmail,
+      to: contributorEmail,
+      subject: contributorSubject,
+      html: contributorHtmlBody,
+    });
+    console.log("Thank you email sent to contributor:", contributorMailInfo.messageId);
+
+
+    return new Response(JSON.stringify({ message: "Notifiche inviate con successo!", ownerEmailId: ownerMailInfo.messageId, contributorEmailId: contributorMailInfo.messageId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (e) {
-    console.error("Errore generico nella Edge Function:", e); // Log errore generico
+    console.error("Errore generico nella Edge Function:", e);
     return new Response(JSON.stringify({ error: e.message || "Errore interno del server." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
