@@ -18,11 +18,11 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Home } from 'lucide-react'; // Rimosso Lock
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Home, Mail } from 'lucide-react'; // Aggiunto Mail icon
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Importa Card components
-import { Link } from 'react-router-dom'; // Importa Link
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Link } from 'react-router-dom';
 
 // Definisci il tipo per i contributi
 interface Contribution {
@@ -56,8 +56,8 @@ const Admin = () => {
   const [totalRemaining, setTotalRemaining] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [completedProducts, setCompletedProducts] = useState(0);
-  // Rimosso stato per reservedProducts
-  // const [reservedProducts, setReservedProducts] = useState(0);
+
+  const [isExportingEmails, setIsExportingEmails] = useState(false); // Stato per il loading dell'esportazione
 
 
   const fetchProducts = async () => {
@@ -66,7 +66,7 @@ const Admin = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls, is_priority') // Rimosso reserved_by_email, reserved_until
+        .select('*, image_urls, is_priority')
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
@@ -81,11 +81,8 @@ const Admin = () => {
         contributedAmount: item.contributed_amount,
         category: item.category,
         originalUrl: item.original_url,
-        createdAt: item.created_at, // Manteniamo per futuro ordinamento admin
-        isPriority: item.is_priority, // Mappa is_priority
-        // Rimosso mapping per reserved_by_email, reserved_until
-        // reservedByEmail: item.reserved_by_email,
-        // reservedUntil: item.reserved_until,
+        createdAt: item.created_at,
+        isPriority: item.is_priority,
       })) || [];
 
       setProducts(formattedProducts);
@@ -95,19 +92,12 @@ const Admin = () => {
       const contributed = formattedProducts.reduce((sum, p) => sum + p.contributedAmount, 0);
       const remaining = total - contributed;
       const completed = formattedProducts.filter(p => p.contributedAmount >= p.price).length;
-      // Rimosso calcolo per reservedProducts
-      // const now = new Date();
-      // const reserved = formattedProducts.filter(p => p.reservedByEmail && p.reservedUntil && new Date(p.reservedUntil) > now).length;
-
 
       setTotalPrice(total);
       setTotalContributed(contributed);
       setTotalRemaining(remaining);
       setTotalProducts(formattedProducts.length);
       setCompletedProducts(completed);
-      // Rimosso setReservedProducts
-      // setReservedProducts(reserved);
-
 
     } catch (err: any) {
       console.error("Errore caricamento prodotti (Admin):", err);
@@ -140,6 +130,55 @@ const Admin = () => {
       showError("Impossibile caricare lo storico dei contributi.");
     } finally {
       setContributionsLoading(false);
+    }
+  };
+
+  // Nuova funzione per esportare le email
+  const handleExportEmails = async () => {
+    setIsExportingEmails(true);
+    try {
+      // Recupera tutte le email uniche dalla tabella 'contributions'
+      const { data, error: supabaseError } = await supabase
+        .from('contributions')
+        .select('contributor_email');
+
+      if (supabaseError) throw supabaseError;
+
+      if (!data || data.length === 0) {
+        showError("Nessuna email di contribuente trovata.");
+        setIsExportingEmails(false);
+        return;
+      }
+
+      // Estrai le email e rimuovi i duplicati
+      const emails = data.map(item => item.contributor_email).filter(email => email); // Filtra eventuali null/undefined
+      const uniqueEmails = Array.from(new Set(emails));
+
+      // Formatta le email (una per riga)
+      const emailList = uniqueEmails.join('\n');
+
+      // Crea un Blob e un URL per il download
+      const blob = new Blob([emailList], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+
+      // Crea un link nascosto e simula il click per scaricare il file
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contributor_emails.txt';
+      document.body.appendChild(a);
+      a.click();
+
+      // Pulisci l'URL temporaneo e l'elemento link
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showSuccess(`Esportate ${uniqueEmails.length} email uniche.`);
+
+    } catch (err: any) {
+      console.error("Errore durante l'esportazione delle email:", err);
+      showError(`Errore durante l'esportazione: ${err.message || 'Errore sconosciuto'}`);
+    } finally {
+      setIsExportingEmails(false);
     }
   };
 
@@ -253,14 +292,22 @@ const Admin = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"> {/* Aggiunto gap */}
         <h1 className="text-3xl font-bold">Gestione Lista Nascita</h1>
-        <div className="flex items-center gap-2"> {/* Contenitore per i pulsanti */}
+        <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end"> {/* Contenitore per i pulsanti */}
            <Link to="/"> {/* Link alla pagina principale */}
              <Button variant="outline">
                <Home className="mr-2 h-4 w-4" /> Torna alla Lista
              </Button>
            </Link>
+           {/* Nuovo pulsante per esportare le email */}
+           <Button onClick={handleExportEmails} disabled={isExportingEmails || loading}>
+             {isExportingEmails ? 'Esportazione...' : (
+               <>
+                 <Mail className="mr-2 h-4 w-4" /> Esporta Email Contribuenti
+               </>
+             )}
+           </Button>
            <Button onClick={handleOpenAddModal}>
              <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Prodotto
            </Button>
@@ -301,8 +348,6 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">{totalRemaining.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</div>
-              {/* Rimosso: Conteggio regali riservati */}
-              {/* <p className="text-xs text-muted-foreground">{reservedProducts} regali attualmente riservati</p> */}
             </CardContent>
           </Card>
         </div>
@@ -323,7 +368,7 @@ const Admin = () => {
                 <TableHead className="hidden md:table-cell">Descrizione</TableHead>
                 <TableHead className="text-right">Prezzo (€)</TableHead>
                 <TableHead className="text-right hidden sm:table-cell">Contribuito (€)</TableHead>
-                <TableHead className="text-center">Priorità</TableHead> {/* Nuova colonna */}
+                <TableHead className="text-center">Priorità</TableHead>
                 <TableHead className="hidden lg:table-cell">URL Originale</TableHead>
                 <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
@@ -331,7 +376,7 @@ const Admin = () => {
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground h-24"> {/* Aggiornato colspan */}
+                  <TableCell colSpan={8} className="text-center text-muted-foreground h-24">
                     Nessun prodotto trovato. Clicca su "Aggiungi Prodotto" per iniziare.
                   </TableCell>
                 </TableRow>
