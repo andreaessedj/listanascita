@@ -18,9 +18,21 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Eye } from 'lucide-react'; // Importa Eye icon
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
+
+// Definisci il tipo per i contributi
+interface Contribution {
+  id: string;
+  product_id: string;
+  amount: number;
+  contributor_name: string;
+  contributor_surname: string;
+  contributor_email: string;
+  message?: string;
+  created_at: string;
+}
 
 const Admin = () => {
   const [loading, setLoading] = useState(true);
@@ -30,6 +42,12 @@ const Admin = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+
+  const [isContributionsModalOpen, setIsContributionsModalOpen] = useState(false);
+  const [selectedProductContributions, setSelectedProductContributions] = useState<Contribution[]>([]);
+  const [contributionsLoading, setContributionsLoading] = useState(false);
+  const [contributionsError, setContributionsError] = useState<string | null>(null);
+
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -64,6 +82,32 @@ const Admin = () => {
     }
   };
 
+  // Funzione per recuperare i contributi per un prodotto specifico
+  const fetchContributionsForProduct = async (productId: string) => {
+    setContributionsLoading(true);
+    setContributionsError(null);
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('contributions')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: true });
+
+      if (supabaseError) throw supabaseError;
+
+      setSelectedProductContributions(data || []);
+      setIsContributionsModalOpen(true); // Apri il modale dopo aver caricato i dati
+
+    } catch (err: any) {
+      console.error(`Errore caricamento contributi per prodotto ${productId}:`, err);
+      setContributionsError("Impossibile caricare lo storico dei contributi.");
+      showError("Impossibile caricare lo storico dei contributi.");
+    } finally {
+      setContributionsLoading(false);
+    }
+  };
+
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -82,6 +126,13 @@ const Admin = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
   };
+
+  const handleCloseContributionsModal = () => {
+    setIsContributionsModalOpen(false);
+    setSelectedProductContributions([]);
+    setContributionsError(null);
+  };
+
 
   const handleSaveProduct = async (formData: ProductFormData) => {
     setFormLoading(true);
@@ -234,6 +285,11 @@ const Admin = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
+                       {/* Pulsante per vedere i contributi */}
+                       <Button variant="ghost" size="icon" onClick={() => fetchContributionsForProduct(product.id)} className="mr-1">
+                         <Eye className="h-4 w-4" />
+                         <span className="sr-only">Vedi Contributi</span>
+                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleOpenEditModal(product)} className="mr-1">
                         <Pencil className="h-4 w-4" />
                         <span className="sr-only">Modifica</span>
@@ -251,6 +307,7 @@ const Admin = () => {
         </div>
       )}
 
+      {/* Modale Aggiungi/Modifica Prodotto */}
       <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -265,6 +322,42 @@ const Admin = () => {
             onCancel={handleCloseModal}
             isLoading={formLoading}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale Storico Contributi */}
+      <Dialog open={isContributionsModalOpen} onOpenChange={(open) => !open && handleCloseContributionsModal()}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Storico Contributi</DialogTitle>
+            <DialogDescription>
+              Elenco dei contributi ricevuti per questo prodotto.
+            </DialogDescription>
+          </DialogHeader>
+          {contributionsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : contributionsError ? (
+            <p className="text-red-500">{contributionsError}</p>
+          ) : selectedProductContributions.length === 0 ? (
+            <p className="text-center text-muted-foreground">Nessun contributo registrato per questo prodotto.</p>
+          ) : (
+            <div className="space-y-4">
+              {selectedProductContributions.map(contribution => (
+                <div key={contribution.id} className="border rounded-md p-3 text-sm bg-gray-50">
+                  <p><strong>Importo:</strong> {contribution.amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p>
+                  <p><strong>Da:</strong> {contribution.contributor_name} {contribution.contributor_surname}</p>
+                  <p><strong>Email:</strong> {contribution.contributor_email}</p>
+                  {contribution.message && <p><strong>Messaggio:</strong> {contribution.message}</p>}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Contribuito il: {new Date(contribution.created_at).toLocaleString('it-IT')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
