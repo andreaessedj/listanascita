@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
+import ShareButtons from '@/components/ShareButtons'; // Importa il componente ShareButtons
 import { Product } from '@/types/product';
 import { Baby, Heart, ArrowDownUp, Filter } from 'lucide-react';
 import { showSuccess, showError as showErrorToast } from '@/utils/toast';
@@ -19,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Link } from 'react-router-dom';
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
-type SortCriteria = 'name' | 'price' | 'createdAt';
+type SortCriteria = 'name' | 'price' | 'createdAt' | 'priority'; // Aggiunto 'priority'
 type SortDirection = 'asc' | 'desc';
 
 const Index = () => {
@@ -37,8 +38,8 @@ const Index = () => {
     product: Product | null;
   }>({ isOpen: false, product: null });
 
-  const [sortCriteria, setSortCriteria] = useState<SortCriteria>('price');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortCriteria, setSortCriteria] = useState<SortCriteria>('priority'); // Ordina per priorità di default
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc'); // Priorità in ordine decrescente (prima i prioritari)
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -60,7 +61,7 @@ const Index = () => {
       try {
         const { data, error: supabaseError } = await supabase
           .from('products')
-          .select('*, image_urls')
+          .select('*, image_urls, is_priority, reserved_by_email, reserved_until') // Seleziona anche i campi di prenotazione
           .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
@@ -76,6 +77,9 @@ const Index = () => {
           category: item.category,
           originalUrl: item.original_url,
           createdAt: item.created_at,
+          isPriority: item.is_priority,
+          reservedByEmail: item.reserved_by_email, // Mappa reserved_by_email
+          reservedUntil: item.reserved_until, // Mappa reserved_until
         })) || [];
         setProducts(formattedProducts);
 
@@ -91,6 +95,8 @@ const Index = () => {
   }, []);
 
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
+    // Qui potremmo aggiungere la logica per tentare la prenotazione
+    // Per ora, apriamo semplicemente il modale con i dati del prodotto
     setContributionModalState({ isOpen: true, product, paymentMethod: method });
   };
   const handleCloseContributionModal = () => {
@@ -113,48 +119,54 @@ const Index = () => {
     const newContributedAmount = Math.round((currentProduct.contributedAmount + amount) * 100) / 100;
 
     try {
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ contributed_amount: newContributedAmount })
-        .match({ id: productId });
+      // Nota: L'aggiornamento del contributed_amount e l'inserimento del record di contribution
+      // sono stati spostati nella Edge Function 'send-contribution-notification'
+      // per garantire che avvengano insieme alla notifica email.
+      // Qui chiamiamo solo la Edge Function.
 
-      if (updateError) throw updateError;
-
-      setProducts(prevProducts =>
+      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille! Riceverai una mail di conferma.`);
+      handleCloseContributionModal();
+      // Aggiorna lo stato locale immediatamente per feedback visivo rapido
+       setProducts(prevProducts =>
         prevProducts.map(p =>
           p.id === productId
             ? { ...p, contributedAmount: newContributedAmount }
             : p
         )
       );
-      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille! Riceverai una mail di conferma.`);
-      handleCloseContributionModal();
 
-      console.log("Tentativo di chiamare la Edge Function per la notifica email...");
-      try {
-        const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
-          body: {
-            productName: currentProduct.name,
-            contributionAmount: amount,
-            contributorName: contributorName,
-            contributorSurname: contributorSurname,
-            contributorEmail: contributorEmail,
-            message: message,
-          },
-        });
-        if (functionError) {
-          console.error('Errore chiamata Edge Function:', functionError);
-        } else {
-          console.log('Chiamata Edge Function completata (verifica i log di Supabase per l\'invio email).');
-        }
-      } catch (invokeError) {
-        console.error('Errore imprevisto durante la chiamata Edge Function:', invokeError);
+
+      console.log("Tentativo di chiamare la Edge Function per la notifica email e l'aggiornamento DB...");
+      const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
+        body: {
+          productId: productId, // Passa l'ID del prodotto alla Edge Function
+          productName: currentProduct.name,
+          contributionAmount: amount,
+          contributorName: contributorName,
+          contributorSurname: contributorSurname,
+          contributorEmail: contributorEmail,
+          message: message,
+        },
+      });
+      if (functionError) {
+        console.error('Errore chiamata Edge Function:', functionError);
+        // Potresti voler gestire questo errore in modo più robusta,
+        // magari ripristinando lo stato locale o mostrando un avviso.
+        showErrorToast("Errore nell'invio della notifica/aggiornamento. Contatta gli sposi.");
+      } else {
+        console.log('Chiamata Edge Function completata (verifica i log di Supabase).');
+        // Dopo la conferma dalla Edge Function, potresti voler rifetchare i prodotti
+        // per essere sicuro che lo stato sia sincronizzato, anche se l'aggiornamento locale è già avvenuto.
+        // fetchProducts(); // Opzionale: rifetch completo per sicurezza
       }
 
     } catch (err: any) {
-      console.error("Errore durante la conferma del contributo:", err);
-      showErrorToast("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      throw err; // Rilancia l'errore per essere gestito dal chiamante (ContributionModal)
+      console.error("Errore durante la conferma del contributo (chiamata Edge Function):", err);
+      showErrorToast("Si è verificato un errore. Riprova.");
+      // Non rilanciare l'errore qui, è già gestito dalla toast.
+    } finally {
+       // La Edge Function gestisce l'aggiornamento del contributed_amount nel DB.
+       // La UI è già stata aggiornata localmente per feedback immediato.
     }
   };
 
@@ -169,12 +181,18 @@ const Index = () => {
     let tempProducts = [...products];
 
     tempProducts.sort((a, b) => {
+      // Ordina prima per priorità (prioritari prima)
+      if (a.isPriority && !b.isPriority) return -1;
+      if (!a.isPriority && b.isPriority) return 1;
+
+      // Poi ordina per stato di completamento (non completati prima)
       const isCompletedA = a.contributedAmount >= a.price;
       const isCompletedB = b.contributedAmount >= b.price;
 
       if (!isCompletedA && isCompletedB) return -1;
       if (isCompletedA && !isCompletedB) return 1;
 
+      // Infine ordina in base al criterio selezionato
       let comparison = 0;
       if (sortCriteria === 'name') {
         comparison = a.name.localeCompare(b.name);
@@ -183,12 +201,25 @@ const Index = () => {
       } else if (sortCriteria === 'createdAt') {
         comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       }
+      // Se il criterio è 'priority', l'ordinamento è già stato fatto sopra,
+      // ma manteniamo la logica per completezza (anche se ridondante qui).
+      else if (sortCriteria === 'priority') {
+         // L'ordinamento per priorità è già gestito all'inizio
+         comparison = 0; // Nessun ulteriore ordinamento per questo criterio qui
+      }
+
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     return tempProducts;
   }, [products, sortCriteria, sortDirection]);
+
+
+  // URL corrente per la condivisione
+  const currentUrl = window.location.href;
+  const shareTitle = "Lista Nascita di Ilaria & Andrea";
+  const shareText = "Scopri la lista nascita di Ilaria & Andrea e contribuisci a un regalo speciale!";
 
 
   return (
@@ -220,6 +251,7 @@ const Index = () => {
                   <SelectValue placeholder="Criterio" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="priority">Priorità</SelectItem> {/* Aggiunto criterio Priorità */}
                   <SelectItem value="createdAt">Più Recenti</SelectItem>
                   <SelectItem value="name">Nome</SelectItem>
                   <SelectItem value="price">Prezzo</SelectItem>
@@ -232,6 +264,12 @@ const Index = () => {
             </Button>
           </div>
         </div>
+
+        {/* Pulsanti di condivisione per l'intera lista */}
+        <div className="flex justify-center mb-8">
+           <ShareButtons title={shareTitle} text={shareText} url={currentUrl} />
+        </div>
+
 
          {loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge'; // Importa Badge
-import { Banknote, CreditCard, Gift, Camera, CheckCircle2 } from 'lucide-react'; // Aggiunte Camera e CheckCircle2
+import { Banknote, CreditCard, Gift, Camera, CheckCircle2, Star, Lock } from 'lucide-react'; // Aggiunte Camera, CheckCircle2, Star, Lock
+import { formatDistanceToNow } from 'date-fns'; // Importa per formattare la data
+import { it } from 'date-fns/locale'; // Importa la locale italiana
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 
@@ -18,8 +20,16 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
   const isCompleted = product.contributedAmount >= product.price;
   const hasMultipleImages = product.imageUrls && product.imageUrls.length > 1;
 
+  // Controlla se il prodotto è riservato e la prenotazione non è scaduta
+  const isReserved = product.reservedByEmail && product.reservedUntil && new Date(product.reservedUntil) > new Date();
+  const reservationExpiresIn = isReserved ? formatDistanceToNow(new Date(product.reservedUntil!), { addSuffix: true, locale: it }) : null;
+
+
   const handleContributeClick = (method: PaymentMethod) => {
-    onOpenContributeModal(product, method);
+    // Non aprire il modale se completato o riservato
+    if (!isCompleted && !isReserved) {
+      onOpenContributeModal(product, method);
+    }
   };
 
   const handleDetailClick = () => {
@@ -28,7 +38,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
 
   return (
     // Aggiunte classi per transizioni e hover
-    <Card className="w-full max-w-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out hover:scale-[1.02] flex flex-col overflow-hidden">
+    <Card className={`w-full max-w-sm shadow-lg transition-all duration-300 ease-in-out flex flex-col overflow-hidden ${isCompleted || isReserved ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl hover:scale-[1.02]'}`}>
       {/* Area cliccabile per dettagli */}
       <div onClick={handleDetailClick} className="cursor-pointer">
         <CardHeader className="p-0 relative"> {/* Rimosso padding, aggiunto relative */}
@@ -40,7 +50,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
               loading="lazy" // Aggiunto lazy loading
             />
             {/* Indicatore immagini multiple */}
-            {hasMultipleImages && !isCompleted && ( // Nascondi se completato per dare spazio al badge
+            {hasMultipleImages && !isCompleted && !isReserved && ( // Nascondi se completato o riservato
               <Badge variant="secondary" className="absolute bottom-2 right-2 bg-black/60 text-white border-none text-xs px-1.5 py-0.5">
                 <Camera className="h-3 w-3 mr-1" />
                 {product.imageUrls?.length}
@@ -52,6 +62,20 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />
                 Completato!
               </Badge>
+            )}
+             {/* Badge Prioritario */}
+            {product.isPriority && !isCompleted && !isReserved && ( // Mostra solo se prioritario, non completato e non riservato
+               <Badge variant="secondary" className="absolute top-2 right-2 bg-yellow-500 text-white border-none shadow-md px-2.5 py-1">
+                 <Star className="h-4 w-4 mr-1.5" fill="currentColor" />
+                 Prioritario
+               </Badge>
+            )}
+             {/* Badge Riservato */}
+            {isReserved && !isCompleted && ( // Mostra solo se riservato e non completato
+               <Badge variant="secondary" className="absolute top-2 left-2 bg-orange-500 text-white border-none shadow-md px-2.5 py-1">
+                 <Lock className="h-4 w-4 mr-1.5" />
+                 Riservato
+               </Badge>
             )}
           </div>
            {/* Spostato Titolo e Descrizione fuori dall'immagine */}
@@ -71,6 +95,11 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           </div>
           <Progress value={progressPercentage} className={`w-full h-3 ${isCompleted ? '[&>*]:bg-gradient-to-r [&>*]:from-green-400 [&>*]:to-emerald-500' : '[&>*]:bg-gradient-to-r [&>*]:from-pink-400 [&>*]:to-blue-400'}`} />
           <p className="text-xs text-gray-500 mt-1 text-right">{progressPercentage.toFixed(0)}% completato</p>
+           {isReserved && !isCompleted && (
+             <p className="text-xs text-orange-600 mt-2 text-center">
+               Questo regalo è riservato e tornerà disponibile {reservationExpiresIn}.
+             </p>
+           )}
         </div>
       </CardContent>
       <CardFooter className="p-4 flex flex-col sm:flex-row justify-around gap-2 border-t mt-auto bg-gray-50/50">
@@ -79,7 +108,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('paypal')}
           title="Contribuisci con PayPal"
-          disabled={isCompleted} // Disabilita se completato
+          disabled={isCompleted || isReserved} // Disabilita se completato o riservato
         >
           <CreditCard className="mr-2 h-4 w-4" /> PayPal
         </Button>
@@ -88,7 +117,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-pink-500 text-pink-500 hover:bg-pink-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('satispay')}
           title="Contribuisci con Satispay"
-          disabled={isCompleted} // Disabilita se completato
+          disabled={isCompleted || isReserved} // Disabilita se completato o riservato
         >
           <Gift className="mr-2 h-4 w-4" /> Satispay
         </Button>
@@ -97,7 +126,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-gray-500 text-gray-500 hover:bg-gray-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('transfer')}
           title="Contribuisci con Bonifico"
-          disabled={isCompleted} // Disabilita se completato
+          disabled={isCompleted || isReserved} // Disabilita se completato o riservato
         >
           <Banknote className="mr-2 h-4 w-4" /> Bonifico
         </Button>

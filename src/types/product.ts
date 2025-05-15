@@ -8,4 +8,8 @@ export interface Product {
   contributedAmount: number;
   category?: string;
   originalUrl?: string;
+  createdAt?: string; // Aggiunto per l'ordinamento
+  isPriority?: boolean; // Aggiunto per la segnalazione di priorità
+  reservedByEmail?: string | null; // Email dell'utente che ha prenotato
+  reservedUntil?: string | null; // Timestamp di scadenza prenotazione
 }
