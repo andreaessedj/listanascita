@@ -17,8 +17,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
+import BulkEmailModal from '@/components/admin/BulkEmailModal'; // Importa il nuovo modale
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Home, Mail } from 'lucide-react'; // Aggiunto Mail icon
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Home, Mail } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -58,6 +59,10 @@ const Admin = () => {
   const [completedProducts, setCompletedProducts] = useState(0);
 
   const [isExportingEmails, setIsExportingEmails] = useState(false); // Stato per il loading dell'esportazione
+
+  // Stato per il modale email massive
+  const [isBulkEmailModalOpen, setIsBulkEmailModalOpen] = useState(false);
+  const [isSendingBulkEmail, setIsSendingBulkEmail] = useState(false);
 
 
   const fetchProducts = async () => {
@@ -133,7 +138,7 @@ const Admin = () => {
     }
   };
 
-  // Nuova funzione per esportare le email
+  // Funzione per esportare le email
   const handleExportEmails = async () => {
     setIsExportingEmails(true);
     try {
@@ -179,6 +184,40 @@ const Admin = () => {
       showError(`Errore durante l'esportazione: ${err.message || 'Errore sconosciuto'}`);
     } finally {
       setIsExportingEmails(false);
+    }
+  };
+
+  // Funzioni per gestire il modale email massive
+  const handleOpenBulkEmailModal = () => {
+    setIsBulkEmailModalOpen(true);
+  };
+
+  const handleCloseBulkEmailModal = () => {
+    setIsBulkEmailModalOpen(false);
+  };
+
+  const handleSendBulkEmail = async (subject: string, body: string) => {
+    setIsSendingBulkEmail(true);
+    try {
+      console.log("Chiamata Edge Function 'send-bulk-email'...");
+      const { data, error: functionError } = await supabase.functions.invoke('send-bulk-email', {
+        body: { subject, body },
+      });
+
+      if (functionError) {
+        console.error('Errore chiamata Edge Function send-bulk-email:', functionError);
+        showError(`Errore durante l'invio dell'email: ${functionError.message || 'Errore sconosciuto'}`);
+      } else {
+        console.log('Chiamata Edge Function send-bulk-email completata:', data);
+        showSuccess("Email inviata con successo a tutti i contribuenti!");
+        handleCloseBulkEmailModal(); // Chiudi il modale solo in caso di successo
+      }
+
+    } catch (err: any) {
+      console.error("Errore generale durante l'invio dell'email massiva:", err);
+      showError(`Si è verificato un errore inatteso: ${err.message || 'Errore sconosciuto'}`);
+    } finally {
+      setIsSendingBulkEmail(false);
     }
   };
 
@@ -300,7 +339,11 @@ const Admin = () => {
                <Home className="mr-2 h-4 w-4" /> Torna alla Lista
              </Button>
            </Link>
-           {/* Nuovo pulsante per esportare le email */}
+           {/* Nuovo pulsante per inviare email massive */}
+           <Button onClick={handleOpenBulkEmailModal} disabled={loading}>
+             <Mail className="mr-2 h-4 w-4" /> Invia Email Generale
+           </Button>
+           {/* Pulsante per esportare le email */}
            <Button onClick={handleExportEmails} disabled={isExportingEmails || loading}>
              {isExportingEmails ? 'Esportazione...' : (
                <>
@@ -496,6 +539,14 @@ const Admin = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modale Email Massive */}
+      <BulkEmailModal
+        isOpen={isBulkEmailModalOpen}
+        onClose={handleCloseBulkEmailModal}
+        onSend={handleSendBulkEmail}
+        isLoading={isSendingBulkEmail}
+      />
     </div>
   );
 };
