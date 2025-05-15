@@ -18,10 +18,11 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Lock } from 'lucide-react'; // Importa nuove icone
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Lock, Home } from 'lucide-react'; // Importa nuove icone (incluso Home)
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Importa Card components
+import { Link } from 'react-router-dom'; // Importa Link
 
 // Definisci il tipo per i contributi
 interface Contribution {
@@ -250,9 +251,16 @@ const Admin = () => {
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Gestione Lista Nascita</h1>
-        <Button onClick={handleOpenAddModal}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Prodotto
-        </Button>
+        <div className="flex items-center gap-2"> {/* Contenitore per i pulsanti */}
+           <Link to="/"> {/* Link alla pagina principale */}
+             <Button variant="outline">
+               <Home className="mr-2 h-4 w-4" /> Torna alla Lista
+             </Button>
+           </Link>
+           <Button onClick={handleOpenAddModal}>
+             <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Prodotto
+           </Button>
+        </div>
       </div>
 
       {/* Sezione Statistiche */}
