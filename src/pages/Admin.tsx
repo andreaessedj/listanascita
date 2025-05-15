@@ -18,9 +18,10 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye, Star, Check } from 'lucide-react'; // Importa Eye, Star, Check icons
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Lock } from 'lucide-react'; // Importa nuove icone
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Importa Card components
 
 // Definisci il tipo per i contributi
 interface Contribution {
@@ -48,6 +49,14 @@ const Admin = () => {
   const [contributionsLoading, setContributionsLoading] = useState(false);
   const [contributionsError, setContributionsError] = useState<string | null>(null);
 
+  // Stati per le statistiche
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [totalContributed, setTotalContributed] = useState(0);
+  const [totalRemaining, setTotalRemaining] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [completedProducts, setCompletedProducts] = useState(0);
+  const [reservedProducts, setReservedProducts] = useState(0);
+
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -55,7 +64,7 @@ const Admin = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls, is_priority') // Seleziona anche is_priority
+        .select('*, image_urls, is_priority, reserved_by_email, reserved_until') // Seleziona anche i campi di prenotazione
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
@@ -72,8 +81,29 @@ const Admin = () => {
         originalUrl: item.original_url,
         createdAt: item.created_at, // Manteniamo per futuro ordinamento admin
         isPriority: item.is_priority, // Mappa is_priority
+        reservedByEmail: item.reserved_by_email, // Mappa reserved_by_email
+        reservedUntil: item.reserved_until, // Mappa reserved_until
       })) || [];
+
       setProducts(formattedProducts);
+
+      // Calcola le statistiche
+      const total = formattedProducts.reduce((sum, p) => sum + p.price, 0);
+      const contributed = formattedProducts.reduce((sum, p) => sum + p.contributedAmount, 0);
+      const remaining = total - contributed;
+      const completed = formattedProducts.filter(p => p.contributedAmount >= p.price).length;
+      const now = new Date();
+      const reserved = formattedProducts.filter(p => p.reservedByEmail && p.reservedUntil && new Date(p.reservedUntil) > now).length;
+
+
+      setTotalPrice(total);
+      setTotalContributed(contributed);
+      setTotalRemaining(remaining);
+      setTotalProducts(formattedProducts.length);
+      setCompletedProducts(completed);
+      setReservedProducts(reserved);
+
+
     } catch (err: any) {
       console.error("Errore caricamento prodotti (Admin):", err);
       setError("Impossibile caricare i prodotti.");
@@ -224,6 +254,47 @@ const Admin = () => {
           <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Prodotto
         </Button>
       </div>
+
+      {/* Sezione Statistiche */}
+      {loading ? (
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Valore Totale Lista</CardTitle>
+              <Euro className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalPrice.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</div>
+              <p className="text-xs text-muted-foreground">{totalProducts} regali totali</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Totale Contribuito</CardTitle>
+              <Gift className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{totalContributed.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</div>
+              <p className="text-xs text-muted-foreground">{completedProducts} regali completati</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Totale Rimanente</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{totalRemaining.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</div>
+              <p className="text-xs text-muted-foreground">{reservedProducts} regali attualmente riservati</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
 
       {loading ? (
          <div className="space-y-4">
