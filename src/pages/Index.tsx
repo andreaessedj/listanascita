@@ -19,45 +19,44 @@ import {
 import { Label } from "@/components/ui/label";
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils'; // Importa la funzione cn
-import { differenceInSeconds, addYears, addMonths, addDays, addHours, addMinutes, format } from 'date-fns'; // Importa funzioni per il calcolo del tempo
+import { format } from 'date-fns'; // Importa solo format
 import { it } from 'date-fns/locale'; // Importa la locale italiana
-// Rimosso: import FlipDigit from '@/components/FlipDigit'; // Importa il nuovo componente FlipDigit
 
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt' | 'priority'; // Aggiunto 'priority'
 type SortDirection = 'asc' | 'desc';
 
-// Funzione per calcolare la differenza in mesi, giorni, ore, minuti, secondi
-const calculateTimeLeft = (targetDate: Date) => {
-  const now = new Date();
-  let totalSeconds = differenceInSeconds(targetDate, now);
+// Rimosso: Funzione per calcolare la differenza in mesi, giorni, ore, minuti, secondi
+// const calculateTimeLeft = (targetDate: Date) => {
+//   const now = new Date();
+//   let totalSeconds = differenceInSeconds(targetDate, now);
 
-  if (totalSeconds <= 0) {
-    return { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isFinished: true };
-  }
+//   if (totalSeconds <= 0) {
+//     return { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isFinished: true };
+//   }
 
-  const secondsInMinute = 60;
-  const secondsInHour = secondsInMinute * 60;
-  const secondsInDay = secondsInHour * 24;
-  const secondsInMonth = secondsInDay * 30.44; // Media giorni in un mese
+//   const secondsInMinute = 60;
+//   const secondsInHour = secondsInMinute * 60;
+//   const secondsInDay = secondsInHour * 24;
+//   const secondsInMonth = secondsInDay * 30.44; // Media giorni in un mese
 
-  const months = Math.floor(totalSeconds / secondsInMonth);
-  totalSeconds -= months * secondsInMonth;
+//   const months = Math.floor(totalSeconds / secondsInMonth);
+//   totalSeconds -= months * secondsInMonth;
 
-  const days = Math.floor(totalSeconds / secondsInDay);
-  totalSeconds -= days / secondsInDay;
+//   const days = Math.floor(totalSeconds / secondsInDay);
+//   totalSeconds -= days / secondsInDay;
 
-  const hours = Math.floor(totalSeconds / secondsInHour);
-  totalSeconds -= hours / secondsInHour;
+//   const hours = Math.floor(totalSeconds / secondsInHour);
+//   totalSeconds -= hours / secondsInHour;
 
-  const minutes = Math.floor(totalSeconds / secondsInMinute);
-  totalSeconds -= minutes / secondsInMinute;
+//   const minutes = Math.floor(totalSeconds / secondsInMinute);
+//   totalSeconds -= minutes / secondsInMinute;
 
-  const seconds = Math.floor(totalSeconds);
+//   const seconds = Math.floor(totalSeconds);
 
-  return { months, days, hours, minutes, seconds, isFinished: false };
-};
+//   return { months, days, hours, minutes, seconds, isFinished: true };
+// };
 
 
 const Index = () => {
@@ -78,23 +77,20 @@ const Index = () => {
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('priority'); // Ordina per priorità di default
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc'); // Priorità in ordine decrescente (prima i prioritari)
 
-  // Data presunta del parto (19 Gennaio 2026)
+  // Data presunta del parto (19 Gennaio 2026) - Mantenuta per visualizzare solo la data
   const estimatedDueDate = new Date(2026, 0, 19, 0, 0, 0); // Mese 0 = Gennaio
 
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(estimatedDueDate));
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft(estimatedDueDate));
-    }, 1000);
-
-    // Pulisci l'interval quando il componente si smonta o il countdown finisce
-    if (timeLeft.isFinished) {
-      clearInterval(timer);
-    }
-
-    return () => clearInterval(timer);
-  }, [estimatedDueDate, timeLeft.isFinished]); // Ricalcola l'effetto se la data o lo stato di fine cambiano
+  // Rimosso: Stato e useEffect per il countdown
+  // const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(estimatedDueDate));
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setTimeLeft(calculateTimeLeft(estimatedDueDate));
+  //   }, 1000);
+  //   if (timeLeft.isFinished) {
+  //     clearInterval(timer);
+  //   }
+  //   return () => clearInterval(timer);
+  // }, [estimatedDueDate, timeLeft.isFinished]);
 
 
   const paymentDetails = {
@@ -313,8 +309,8 @@ const Index = () => {
            Data Presunta Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
         </p>
 
-        {/* Countdown o Messaggio Finale */}
-        <div className={cn("mt-4 inline-flex flex-col items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
+        {/* Rimosso: Countdown o Messaggio Finale */}
+        {/* <div className={cn("mt-4 inline-flex flex-col items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
           {timeLeft.isFinished ? (
             <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
               Finalmente con noi!
@@ -324,7 +320,6 @@ const Index = () => {
               <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
                 Al tuo Arrivo
               </p>
-              {/* Countdown in stile tabellone */}
               <div className="flex space-x-2 text-gray-100 font-mono text-2xl font-bold">
                  <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
                     {String(timeLeft.months).padStart(2, '0')}
@@ -349,7 +344,7 @@ const Index = () => {
               </div>
             </>
           )}
-        </div>
+        </div> */}
       </header>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
