@@ -19,10 +19,44 @@ import {
 import { Label } from "@/components/ui/label";
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils'; // Importa la funzione cn
+import { differenceInSeconds, addYears, addMonths, addDays, addHours, addMinutes, format } from 'date-fns'; // Importa funzioni per il calcolo del tempo
+import { it } from 'date-fns/locale'; // Importa la locale italiana
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt' | 'priority'; // Aggiunto 'priority'
 type SortDirection = 'asc' | 'desc';
+
+// Funzione per calcolare la differenza in mesi, giorni, ore, minuti, secondi
+const calculateTimeLeft = (targetDate: Date) => {
+  const now = new Date();
+  let totalSeconds = differenceInSeconds(targetDate, now);
+
+  if (totalSeconds <= 0) {
+    return { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isFinished: true };
+  }
+
+  const secondsInMinute = 60;
+  const secondsInHour = secondsInMinute * 60;
+  const secondsInDay = secondsInHour * 24;
+  const secondsInMonth = secondsInDay * 30.44; // Media giorni in un mese
+
+  const months = Math.floor(totalSeconds / secondsInMonth);
+  totalSeconds -= months * secondsInMonth;
+
+  const days = Math.floor(totalSeconds / secondsInDay);
+  totalSeconds -= days * secondsInDay;
+
+  const hours = Math.floor(totalSeconds / secondsInHour);
+  totalSeconds -= hours * secondsInHour;
+
+  const minutes = Math.floor(totalSeconds / secondsInMinute);
+  totalSeconds -= minutes * secondsInMinute;
+
+  const seconds = Math.floor(totalSeconds);
+
+  return { months, days, hours, minutes, seconds, isFinished: false };
+};
+
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,6 +75,25 @@ const Index = () => {
 
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('priority'); // Ordina per priorità di default
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc'); // Priorità in ordine decrescente (prima i prioritari)
+
+  // Data presunta del parto (19 Gennaio 2026)
+  const estimatedDueDate = new Date(2026, 0, 19, 0, 0, 0); // Mese 0 = Gennaio
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(estimatedDueDate));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft(estimatedDueDate));
+    }, 1000);
+
+    // Pulisci l'intervallo quando il componente si smonta o il countdown finisce
+    if (timeLeft.isFinished) {
+      clearInterval(timer);
+    }
+
+    return () => clearInterval(timer);
+  }, [estimatedDueDate, timeLeft.isFinished]); // Ricalcola l'effetto se la data o lo stato di fine cambiano
+
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
@@ -244,16 +297,56 @@ const Index = () => {
           Ilaria & Andrea
         </h1>
         <p className={cn("mt-2 text-2xl text-gray-600", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.3s' }}>Vi Presentano</p>
-        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
-          <Baby className="h-10 w-10 text-blue-500" />
-          <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
-            Figlio/a
-          </p>
+
+        {/* Data Presunta Parto */}
+        <p className={cn("mt-4 text-xl font-semibold text-gray-700", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
+           Data Presunta Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
+        </p>
+
+        {/* Countdown o Messaggio Finale */}
+        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
+          {timeLeft.isFinished ? (
+            <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
+              Finalmente con noi!
+            </p>
+          ) : (
+            <>
+              <Baby className="h-10 w-10 text-blue-500" />
+              <div className="flex flex-col items-center">
+                 <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
+                   Mancano
+                 </p>
+                 {/* Countdown in stile tabellone */}
+                 <div className="flex space-x-2 text-gray-100 font-mono text-2xl font-bold">
+                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                       {String(timeLeft.months).padStart(2, '0')}
+                       <div className="text-xs font-normal mt-1">Mesi</div>
+                    </div>
+                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                       {String(timeLeft.days).padStart(2, '0')}
+                       <div className="text-xs font-normal mt-1">Giorni</div>
+                    </div>
+                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                       {String(timeLeft.hours).padStart(2, '0')}
+                       <div className="text-xs font-normal mt-1">Ore</div>
+                    </div>
+                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                       {String(timeLeft.minutes).padStart(2, '0')}
+                       <div className="text-xs font-normal mt-1">Minuti</div>
+                    </div>
+                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                       {String(timeLeft.seconds).padStart(2, '0')}
+                       <div className="text-xs font-normal mt-1">Secondi</div>
+                    </div>
+                 </div>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
-        <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
+        <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
            <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -278,7 +371,7 @@ const Index = () => {
         </div>
 
         {/* Pulsanti di condivisione per l'intera lista */}
-        <div className={cn("flex justify-center mb-8", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
+        <div className={cn("flex justify-center mb-8", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.7s' }}>
            <ShareButtons title={shareTitle} text={shareText} url={currentUrl} />
         </div>
 
@@ -307,7 +400,7 @@ const Index = () => {
               <div
                  key={product.id}
                  className={cn(loading ? 'opacity-0' : 'animate-fade-in-up')}
-                 style={{ animationDelay: `${0.7 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
+                 style={{ animationDelay: `${0.8 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
               >
                 <ProductCard
                   product={product}
@@ -320,11 +413,8 @@ const Index = () => {
         )}
       </main>
 
-      <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.7 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
+      <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.8 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
-        {/* Rimosso: <Link to="/our-story" className="text-sm text-gray-500 hover:text-gray-700 underline">
-          La Nostra Storia
-        </Link> */}
         <Link to="/admin" className="text-sm text-gray-500 hover:text-gray-700 underline">
           Admin
         </Link>
