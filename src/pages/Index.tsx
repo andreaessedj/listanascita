@@ -21,7 +21,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils'; // Importa la funzione cn
 import { differenceInSeconds, addYears, addMonths, addDays, addHours, addMinutes, format } from 'date-fns'; // Importa funzioni per il calcolo del tempo
 import { it } from 'date-fns/locale'; // Importa la locale italiana
-import FlipDigit from '@/components/FlipDigit'; // Importa il nuovo componente FlipDigit
+// Rimosso: import FlipDigit from '@/components/FlipDigit'; // Importa il nuovo componente FlipDigit
 
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
@@ -88,7 +88,7 @@ const Index = () => {
       setTimeLeft(calculateTimeLeft(estimatedDueDate));
     }, 1000);
 
-    // Pulisci l'intervallo quando il componente si smonta o il countdown finisce
+    // Pulisci l'interval quando il componente si smonta o il countdown finisce
     if (timeLeft.isFinished) {
       clearInterval(timer);
     }
@@ -324,13 +324,28 @@ const Index = () => {
               <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
                 Al tuo Arrivo
               </p>
-              {/* Countdown in stile tabellone - Using FlipDigit */}
-              <div className="flex space-x-2">
-                 <FlipDigit value={timeLeft.months} label="Mesi" />
-                 <FlipDigit value={timeLeft.days} label="Giorni" />
-                 <FlipDigit value={timeLeft.hours} label="Ore" />
-                 <FlipDigit value={timeLeft.minutes} label="Minuti" />
-                 <FlipDigit value={timeLeft.seconds} label="Secondi" />
+              {/* Countdown in stile tabellone */}
+              <div className="flex space-x-2 text-gray-100 font-mono text-2xl font-bold">
+                 <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                    {String(timeLeft.months).padStart(2, '0')}
+                    <div className="text-xs font-normal mt-1">Mesi</div>
+                 </div>
+                 <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                    {String(timeLeft.days).padStart(2, '0')}
+                    <div className="text-xs font-normal mt-1">Giorni</div>
+                 </div>
+                 <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                    {String(timeLeft.hours).padStart(2, '0')}
+                    <div className="text-xs font-normal mt-1">Ore</div>
+                 </div>
+                 <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                    {String(timeLeft.minutes).padStart(2, '0')}
+                    <div className="text-xs font-normal mt-1">Minuti</div>
+                 </div>
+                 <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
+                    {String(timeLeft.seconds).padStart(2, '0')}
+                    <div className="text-xs font-normal mt-1">Secondi</div>
+                 </div>
               </div>
             </>
           )}
