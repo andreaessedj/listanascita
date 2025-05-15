@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
-import OurStory from "./pages/OurStory"; // Importa la nuova pagina
+// Rimosso: import OurStory from "./pages/OurStory"; // Importa la nuova pagina
 
 const queryClient = new QueryClient();
 
@@ -21,7 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/our-story" element={<OurStory />} /> {/* Nuova rotta */}
+          {/* Rimosso: <Route path="/our-story" element={<OurStory />} /> */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

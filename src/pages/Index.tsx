@@ -322,9 +322,9 @@ const Index = () => {
 
       <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.7 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
-        <Link to="/our-story" className="text-sm text-gray-500 hover:text-gray-700 underline">
+        {/* Rimosso: <Link to="/our-story" className="text-sm text-gray-500 hover:text-gray-700 underline">
           La Nostra Storia
-        </Link>
+        </Link> */}
         <Link to="/admin" className="text-sm text-gray-500 hover:text-gray-700 underline">
           Admin
         </Link>
