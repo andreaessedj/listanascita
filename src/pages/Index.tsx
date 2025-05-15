@@ -1,10 +1,10 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'; // Importa useCallback
 import ProductCard from '@/components/ProductCard';
 import ContributionModal from '@/components/ContributionModal';
 import ProductDetailModal from '@/components/ProductDetailModal';
 import ShareButtons from '@/components/ShareButtons'; // Importa il componente ShareButtons
-import { Product } from '@/types/product';
-import { Baby, Heart, ArrowDownUp, Filter } from 'lucide-react';
+import { Product, EmbeddedContribution } from '@/types/product'; // Importa EmbeddedContribution
+import { Baby, Heart, ArrowDownUp, Filter, Gift } from 'lucide-react'; // Importa Gift icon
 import { showSuccess, showError as showErrorToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +77,11 @@ const Index = () => {
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>('priority'); // Ordina per priorità di default
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc'); // Priorità in ordine decrescente (prima i prioritari)
 
+  // Stato per il suggerimento regalo
+  const [suggestedProductId, setSuggestedProductId] = useState<string | null>(null);
+  // Ref map per le card dei prodotti
+  const productRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
   // Data presunta del parto (19 Gennaio 2026)
   const estimatedDueDate = new Date(2026, 0, 19, 0, 0, 0); // Mese 0 = Gennaio
 
@@ -110,19 +115,19 @@ const Index = () => {
     },
   };
 
-  // Funzione per recuperare i prodotti, esclusi i campi di prenotazione
+  // Funzione per recuperare i prodotti, inclusi gli ultimi contributi
   const fetchProducts = async () => {
      setLoading(true);
     setError(null);
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls, is_priority') // Rimosso reserved_by_email, reserved_until
+        .select('*, image_urls, is_priority, contributions(contributor_name, contributor_surname, created_at, amount, order=created_at.desc, limit=3)') // Aggiunto select per contributi
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
 
-      const formattedProducts = data?.map(item => ({
+      const formattedProducts: Product[] = data?.map(item => ({
         id: item.id,
         name: item.name,
         description: item.description,
@@ -134,9 +139,7 @@ const Index = () => {
         originalUrl: item.original_url,
         createdAt: item.created_at,
         isPriority: item.is_priority,
-        // Rimosso mapping per reserved_by_email, reserved_until
-        // reservedByEmail: item.reserved_by_email,
-        // reservedUntil: item.reserved_until,
+        contributions: item.contributions || [], // Mappa i contributi embedded
       })) || [];
 
       // Aggiorna lo stato locale solo se ci sono dati validi
@@ -157,9 +160,8 @@ const Index = () => {
   useEffect(() => {
     fetchProducts();
 
-    // Rimosso: Intervallo per rifetchare i prodotti periodicamente (non serve più per le prenotazioni)
-    // const intervalId = setInterval(fetchProducts, 60000); // Aggiorna ogni 60 secondi
-    // return () => clearInterval(intervalId);
+    // Pulisci i ref quando il componente si smonta
+    return () => productRefs.current.clear();
 
   }, []); // Dipendenze vuote per eseguire solo al mount/unmount
 
@@ -167,13 +169,11 @@ const Index = () => {
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
      // Controlla solo se è completato
      const isCompleted = product.contributedAmount >= product.price;
-     // Rimosso controllo isReserved
 
      if (isCompleted) {
         showErrorToast("Questo regalo è già stato completato.");
         return;
      }
-     // Rimosso controllo isReserved
 
      // Se non è completato, apri il modale
     setContributionModalState({ isOpen: true, product, paymentMethod: method });
@@ -244,6 +244,31 @@ const Index = () => {
     setDetailModalState({ isOpen: false, product: null });
   };
 
+  // Funzione per suggerire un regalo casuale
+  const handleSuggestGift = useCallback(() => {
+    const availableProducts = sortedProducts.filter(p => p.contributedAmount < p.price); // Solo prodotti non completati
+    if (availableProducts.length === 0) {
+      showErrorToast("Tutti i regali sono già stati completati! Grazie a tutti!");
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * availableProducts.length);
+    const suggested = availableProducts[randomIndex];
+    setSuggestedProductId(suggested.id);
+  }, [sortedProducts]); // Dipende da sortedProducts
+
+  // Effetto per scrollare al regalo suggerito
+  useEffect(() => {
+    if (suggestedProductId) {
+      const element = productRefs.current.get(suggestedProductId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Opzionale: rimuovi l'ID suggerito dopo lo scroll se non vuoi che rimanga evidenziato
+        // setSuggestedProductId(null);
+      }
+    }
+  }, [suggestedProductId]);
+
+
   const sortedProducts = useMemo(() => {
     let tempProducts = [...products];
 
@@ -258,8 +283,6 @@ const Index = () => {
 
       if (!isCompletedA && isCompletedB) return -1;
       if (isCompletedA && !isCompletedB) return 1;
-
-      // Rimosso: Ordinamento per stato di prenotazione
 
       // Infine ordina in base al criterio selezionato
       let comparison = 0;
@@ -365,7 +388,16 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 relative z-10">
         <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.7s' }}>
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
-           <div className="flex items-center gap-4">
+           <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end"> {/* Aggiunto flex-wrap e justify */}
+            {/* Pulsante Suggerisci Regalo */}
+            <Button
+              variant="outline"
+              onClick={handleSuggestGift}
+              disabled={loading || sortedProducts.filter(p => p.contributedAmount < p.price).length === 0} // Disabilita se tutti completati
+              className="bg-white/80"
+            >
+              <Gift className="h-4 w-4 mr-2" /> Suggeriscimi un Regalo
+            </Button>
             <div className="flex items-center gap-2">
               <Label htmlFor="sort-criteria" className="text-sm font-medium">Ordina per:</Label>
               <Select value={sortCriteria} onValueChange={(value) => setSortCriteria(value as SortCriteria)}>
@@ -416,7 +448,8 @@ const Index = () => {
             {sortedProducts.map((product, index) => (
               <div
                  key={product.id}
-                 className={cn(loading ? 'opacity-0' : 'animate-fade-in-up')}
+                 ref={(el) => { productRefs.current.set(product.id, el); }} // Assegna il ref
+                 className={cn(loading ? 'opacity-0' : 'animate-fade-in-up', suggestedProductId === product.id ? 'ring-4 ring-blue-400 ring-opacity-50 transition-all duration-500' : '')} // Aggiungi classe per evidenziare
                  style={{ animationDelay: `${0.9 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
               >
                 <ProductCard

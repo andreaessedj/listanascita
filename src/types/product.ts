@@ -1,3 +1,9 @@
+export interface EmbeddedContribution {
+  contributor_name: string;
+  contributor_surname: string;
+  created_at: string; // Keep created_at for ordering within the embed
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -10,6 +16,6 @@ export interface Product {
   originalUrl?: string;
   createdAt?: string; // Aggiunto per l'ordinamento
   isPriority?: boolean; // Aggiunto per la segnalazione di priorità
-  // Rimosso: reservedByEmail?: string | null; // Email dell'utente che ha prenotato
-  // Rimosso: reservedUntil?: string | null; // Timestamp di scadenza prenotazione
+  // Add the embedded contributions field
+  contributions?: EmbeddedContribution[]; // Supabase embeds related data as an array
 }

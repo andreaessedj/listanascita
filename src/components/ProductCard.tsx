@@ -1,13 +1,10 @@
-import { Product } from '@/types/product';
+import { Product, EmbeddedContribution } from '@/types/product'; // Importa EmbeddedContribution
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge'; // Importa Badge
-import { Banknote, CreditCard, Gift, Camera, CheckCircle2, Star } from 'lucide-react'; // Rimosso Lock
-// Rimosso import per formattare la data (non serve più per la prenotazione)
-// import { formatDistanceToNow } from 'date-fns';
-// Rimosso import per la locale italiana
-// import { it } from 'date-fns/locale';
+import { Banknote, CreditCard, Gift, Camera, CheckCircle2, Star, Users } from 'lucide-react'; // Importa Users icon
+import React from 'react'; // Importa React per Ref
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 
@@ -17,19 +14,22 @@ interface ProductCardProps {
   onOpenDetailModal: (product: Product) => void;
 }
 
-const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: ProductCardProps) => {
+// Helper function to get initials
+const getInitials = (name: string, surname: string): string => {
+  const firstInitial = name.trim().charAt(0).toUpperCase();
+  const lastInitial = surname.trim().charAt(0).toUpperCase();
+  return `${firstInitial}${lastInitial}`;
+};
+
+
+const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(({ product, onOpenContributeModal, onOpenDetailModal }, ref) => { // Usa React.forwardRef
   const progressPercentage = product.price > 0 ? Math.min(100, (product.contributedAmount / product.price) * 100) : 0; // Assicura max 100%
   const isCompleted = product.contributedAmount >= product.price;
   const hasMultipleImages = product.imageUrls && product.imageUrls.length > 1;
 
-  // Rimosso controllo e calcolo per la prenotazione
-  // const isReserved = product.reservedByEmail && product.reservedUntil && new Date(product.reservedUntil) > new Date();
-  // const reservationExpiresIn = isReserved ? formatDistanceToNow(new Date(product.reservedUntil!), { addSuffix: true, locale: it }) : null;
-
-
   const handleContributeClick = (method: PaymentMethod) => {
     // Non aprire il modale se completato
-    if (!isCompleted) { // Rimosso controllo isReserved
+    if (!isCompleted) {
       onOpenContributeModal(product, method);
     }
   };
@@ -38,9 +38,15 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
     onOpenDetailModal(product);
   };
 
+  // Ordina i contributi per data decrescente e prendi i primi 3
+  const latestContributions = product.contributions
+    ? [...product.contributions].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 3)
+    : [];
+
+
   return (
-    // Aggiunte classi per transizioni e hover
-    <Card className={`w-full max-w-sm shadow-lg transition-all duration-300 ease-in-out flex flex-col overflow-hidden ${isCompleted ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl hover:scale-[1.02]'}`}> {/* Rimosso isReserved dalla classe */}
+    // Aggiunte classi per transizioni e hover, passato il ref
+    <Card ref={ref} className={`w-full max-w-sm shadow-lg transition-all duration-300 ease-in-out flex flex-col overflow-hidden ${isCompleted ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl hover:scale-[1.02]'}`}>
       {/* Area cliccabile per dettagli */}
       <div onClick={handleDetailClick} className="cursor-pointer">
         <CardHeader className="p-0 relative"> {/* Rimosso padding, aggiunto relative */}
@@ -52,7 +58,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
               loading="lazy" // Aggiunto lazy loading
             />
             {/* Indicatore immagini multiple */}
-            {hasMultipleImages && !isCompleted && ( // Rimosso isReserved dalla condizione
+            {hasMultipleImages && !isCompleted && (
               <Badge variant="secondary" className="absolute bottom-2 right-2 bg-black/60 text-white border-none text-xs px-1.5 py-0.5">
                 <Camera className="h-3 w-3 mr-1" />
                 {product.imageUrls?.length}
@@ -66,19 +72,12 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
               </Badge>
             )}
              {/* Badge Prioritario */}
-            {product.isPriority && !isCompleted && ( // Rimosso isReserved dalla condizione
+            {product.isPriority && !isCompleted && (
                <Badge variant="secondary" className="absolute top-2 right-2 bg-yellow-500 text-white border-none shadow-md px-2.5 py-1">
                  <Star className="h-4 w-4 mr-1.5" fill="currentColor" />
                  Prioritario
                </Badge>
             )}
-             {/* Rimosso: Badge Riservato */}
-            {/* {isReserved && !isCompleted && (
-               <Badge variant="secondary" className="absolute top-2 left-2 bg-orange-500 text-white border-none shadow-md px-2.5 py-1">
-                 <Lock className="h-4 w-4 mr-1.5" />
-                 Riservato
-               </Badge>
-            )} */}
           </div>
            {/* Spostato Titolo e Descrizione fuori dall'immagine */}
            <div className="p-4">
@@ -97,12 +96,22 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           </div>
           <Progress value={progressPercentage} className={`w-full h-3 ${isCompleted ? '[&>*]:bg-gradient-to-r [&>*]:from-green-400 [&>*]:to-emerald-500' : '[&>*]:bg-gradient-to-r [&>*]:from-pink-400 [&>*]:to-blue-400'}`} />
           <p className="text-xs text-gray-500 mt-1 text-right">{progressPercentage.toFixed(0)}% completato</p>
-           {/* Rimosso: Testo prenotazione */}
-           {/* {isReserved && !isCompleted && (
-             <p className="text-xs text-orange-600 mt-2 text-center">
-               Questo regalo è riservato e tornerà disponibile {reservationExpiresIn}.
-             </p>
-           )} */}
+
+           {/* Visualizzazione Ultimi Contributi */}
+           {latestContributions.length > 0 && (
+             <div className="mt-3 text-sm text-gray-600 flex items-center">
+               <Users className="h-4 w-4 mr-1.5 text-gray-500" />
+               <span className="font-medium">Ultimi contributi:</span>
+               <span className="ml-2">
+                 {latestContributions.map((c, index) => (
+                   <React.Fragment key={c.created_at + index}> {/* Usa created_at + index come key */}
+                     <span className="font-semibold text-gray-800">{getInitials(c.contributor_name, c.contributor_surname)}</span>
+                     {index < latestContributions.length - 1 && ', '}
+                   </React.Fragment>
+                 ))}
+               </span>
+             </div>
+           )}
         </div>
       </CardContent>
       <CardFooter className="p-4 flex flex-col sm:flex-row justify-around gap-2 border-t mt-auto bg-gray-50/50">
@@ -111,7 +120,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-blue-500 text-blue-500 hover:bg-blue-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('paypal')}
           title="Contribuisci con PayPal"
-          disabled={isCompleted} // Rimosso isReserved
+          disabled={isCompleted}
         >
           <CreditCard className="mr-2 h-4 w-4" /> PayPal
         </Button>
@@ -120,7 +129,7 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-pink-500 text-pink-500 hover:bg-pink-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('satispay')}
           title="Contribuisci con Satispay"
-          disabled={isCompleted} // Rimosso isReserved
+          disabled={isCompleted}
         >
           <Gift className="mr-2 h-4 w-4" /> Satispay
         </Button>
@@ -129,13 +138,13 @@ const ProductCard = ({ product, onOpenContributeModal, onOpenDetailModal }: Prod
           className="w-full sm:w-auto border-gray-500 text-gray-500 hover:bg-gray-100 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => handleContributeClick('transfer')}
           title="Contribuisci con Bonifico"
-          disabled={isCompleted} // Rimosso isReserved
+          disabled={isCompleted}
         >
           <Banknote className="mr-2 h-4 w-4" /> Bonifico
         </Button>
       </CardFooter>
     </Card>
   );
-};
+});
 
 export default ProductCard;
