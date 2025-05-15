@@ -6,7 +6,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TableHeader,
+TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import {
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Lock, Home } from 'lucide-react'; // Importa nuove icone (incluso Home)
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check, Euro, Package, Gift, Home } from 'lucide-react'; // Rimosso Lock
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Importa Card components
@@ -56,7 +56,8 @@ const Admin = () => {
   const [totalRemaining, setTotalRemaining] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [completedProducts, setCompletedProducts] = useState(0);
-  const [reservedProducts, setReservedProducts] = useState(0);
+  // Rimosso stato per reservedProducts
+  // const [reservedProducts, setReservedProducts] = useState(0);
 
 
   const fetchProducts = async () => {
@@ -65,7 +66,7 @@ const Admin = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls, is_priority, reserved_by_email, reserved_until') // Seleziona anche i campi di prenotazione
+        .select('*, image_urls, is_priority') // Rimosso reserved_by_email, reserved_until
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
@@ -82,8 +83,9 @@ const Admin = () => {
         originalUrl: item.original_url,
         createdAt: item.created_at, // Manteniamo per futuro ordinamento admin
         isPriority: item.is_priority, // Mappa is_priority
-        reservedByEmail: item.reserved_by_email, // Mappa reserved_by_email
-        reservedUntil: item.reserved_until, // Mappa reserved_until
+        // Rimosso mapping per reserved_by_email, reserved_until
+        // reservedByEmail: item.reserved_by_email,
+        // reservedUntil: item.reserved_until,
       })) || [];
 
       setProducts(formattedProducts);
@@ -93,8 +95,9 @@ const Admin = () => {
       const contributed = formattedProducts.reduce((sum, p) => sum + p.contributedAmount, 0);
       const remaining = total - contributed;
       const completed = formattedProducts.filter(p => p.contributedAmount >= p.price).length;
-      const now = new Date();
-      const reserved = formattedProducts.filter(p => p.reservedByEmail && p.reservedUntil && new Date(p.reservedUntil) > now).length;
+      // Rimosso calcolo per reservedProducts
+      // const now = new Date();
+      // const reserved = formattedProducts.filter(p => p.reservedByEmail && p.reservedUntil && new Date(p.reservedUntil) > now).length;
 
 
       setTotalPrice(total);
@@ -102,7 +105,8 @@ const Admin = () => {
       setTotalRemaining(remaining);
       setTotalProducts(formattedProducts.length);
       setCompletedProducts(completed);
-      setReservedProducts(reserved);
+      // Rimosso setReservedProducts
+      // setReservedProducts(reserved);
 
 
     } catch (err: any) {
@@ -297,7 +301,8 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">{totalRemaining.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">{reservedProducts} regali attualmente riservati</p>
+              {/* Rimosso: Conteggio regali riservati */}
+              {/* <p className="text-xs text-muted-foreground">{reservedProducts} regali attualmente riservati</p> */}
             </CardContent>
           </Card>
         </div>

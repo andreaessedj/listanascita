@@ -110,22 +110,22 @@ serve(async (req) => {
         console.log("Contribution record inserted successfully.");
     }
 
-    // --- Libera la prenotazione per questo prodotto ---
-    console.log(`Attempting to clear reservation for product ${productId}...`);
-     const { error: clearReservationError } = await supabase
-      .from('products')
-      .update({
-        reserved_by_email: null,
-        reserved_until: null,
-      })
-      .match({ id: productId });
+    // --- Rimosso: Libera la prenotazione per questo prodotto ---
+    // console.log(`Attempting to clear reservation for product ${productId}...`);
+    //  const { error: clearReservationError } = await supabase
+    //   .from('products')
+    //   .update({
+    //     reserved_by_email: null,
+    //     reserved_until: null,
+    //   })
+    //   .match({ id: productId });
 
-    if (clearReservationError) {
-        console.error("Errore nel liberare la prenotazione:", clearReservationError.message);
-        // Logga l'errore ma non bloccare la risposta di successo, l'aggiornamento principale è avvenuto.
-    } else {
-        console.log(`Reservation cleared successfully for product ${productId}.`);
-    }
+    // if (clearReservationError) {
+    //     console.error("Errore nel liberare la prenotazione:", clearReservationError.message);
+    //     // Logga l'errore ma non bloccare la risposta di successo, l'aggiornamento principale è avvenuto.
+    // } else {
+    //     console.log(`Reservation cleared successfully for product ${productId}.`);
+    // }
 
 
     // --- Email di Notifica al Proprietario ---

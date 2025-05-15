@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Mail } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client'; // Importa supabase per chiamare la Edge Function
+// Rimosso import di supabase qui, non serve più per la prenotazione diretta
 import { showError as showErrorToast, showSuccess } from '@/utils/toast'; // Importa le toast
 
 interface ContributionModalProps {
@@ -23,7 +23,7 @@ interface ContributionModalProps {
   onClose: () => void;
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
-  // La funzione onConfirmContribution ora gestirà l'intera logica, inclusa la prenotazione
+  // La funzione onConfirmContribution ora gestirà l'invio della notifica/aggiornamento
   onConfirmContribution: (
     productId: string,
     amount: number,
@@ -74,13 +74,15 @@ const ContributionModal = ({
 
   const remainingAmount = product.price - product.contributedAmount;
   const calculatedRemaining = Math.max(0, remainingAmount);
-  const maxContribution = calculatedRemaining > 0 ? calculatedRemaining : product.price;
+  // Rimosso maxContribution basato sul rimanente, ora si può contribuire fino al prezzo totale
+  // const maxContribution = calculatedRemaining > 0 ? calculatedRemaining : product.price;
+
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
        const numericValue = parseFloat(value);
-       // Permetti di inserire un importo superiore al rimanente, ma non superiore al prezzo totale
+       // Permetti di inserire un importo fino al prezzo totale
        if (!isNaN(numericValue) && numericValue > product.price) {
          setAmount(product.price.toFixed(2));
        } else {
@@ -96,6 +98,7 @@ const ContributionModal = ({
   const handleConfirm = async () => {
     const contributionAmount = parseFloat(amount.toString());
     const epsilon = 0.001; // Tolleranza per floating point
+    // La validazione sull'importo massimo ora è sul prezzo totale
     if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > product.price + epsilon) {
        setError(`Inserisci un importo valido (massimo ${product.price.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
        return;
@@ -113,28 +116,7 @@ const ContributionModal = ({
     setIsLoading(true);
 
     try {
-      // Chiamata alla Edge Function per prenotare il prodotto
-      console.log("Attempting to reserve product via Edge Function...");
-      const { data: reserveData, error: reserveError } = await supabase.functions.invoke('reserve-product', {
-        body: {
-          productId: product.id,
-          contributorEmail: contributorEmail.trim(),
-        },
-      });
-
-      if (reserveError) {
-        console.error('Errore durante la prenotazione:', reserveError);
-        // Gestisci errori specifici dalla Edge Function se necessario
-        setError(reserveError.message || "Si è verificato un errore durante la prenotazione. Riprova.");
-        setIsLoading(false);
-        return; // Interrompi il processo se la prenotazione fallisce
-      }
-
-      console.log('Prenotazione riuscita:', reserveData);
-
-      // Se la prenotazione ha successo, procedi con la conferma del contributo
-      // La funzione onConfirmContribution (in Index.tsx) chiamerà la Edge Function di notifica
-      // che ora includerà la logica per liberare la prenotazione.
+      // Chiamata diretta alla funzione di conferma (che ora gestisce solo notifica/aggiornamento DB)
       await onConfirmContribution(
         product.id,
         contributionAmount,
@@ -327,7 +309,8 @@ const ContributionModal = ({
           )}
 
            <p className="text-xs text-gray-500 mt-2 text-center">
-             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", il regalo verrà riservato per te per un breve periodo e riceverai una mail di riepilogo. Potrai quindi procedere con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente sulla lista una volta ricevuto."}
+             {/* Testo aggiornato senza riferimento alla prenotazione */}
+             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", riceverai una mail di riepilogo. Potrai quindi procedere con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente sulla lista una volta ricevuto."}
            </p>
         </div>
         <DialogFooter>
@@ -343,7 +326,7 @@ const ContributionModal = ({
                 isLoading ||
                 !amount ||
                 parseFloat(amount.toString()) <= 0 ||
-                calculatedRemaining <= 0 ||
+                calculatedRemaining <= 0 || // Mantenuto disabilitato se già completato
                 !contributorName.trim() ||
                 !contributorSurname.trim() ||
                 !contributorEmail.trim() ||

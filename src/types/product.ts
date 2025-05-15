@@ -10,6 +10,6 @@ export interface Product {
   originalUrl?: string;
   createdAt?: string; // Aggiunto per l'ordinamento
   isPriority?: boolean; // Aggiunto per la segnalazione di priorità
-  reservedByEmail?: string | null; // Email dell'utente che ha prenotato
-  reservedUntil?: string | null; // Timestamp di scadenza prenotazione
+  // Rimosso: reservedByEmail?: string | null; // Email dell'utente che ha prenotato
+  // Rimosso: reservedUntil?: string | null; // Timestamp di scadenza prenotazione
 }
