@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail } from "lucide-react"; // Aggiunto Mail icon
+import { Terminal, Mail } from "lucide-react";
 
 interface ContributionModalProps {
   isOpen: boolean;
@@ -26,12 +26,12 @@ interface ContributionModalProps {
     amount: number,
     contributorName: string,
     contributorSurname: string,
-    contributorEmail: string, // Aggiunto contributorEmail
+    contributorEmail: string,
     message: string
   ) => Promise<void>;
   paymentDetails: {
     paypal: string;
-    satispay: string;
+    satispay: { text: string; link: string }; // Aggiornato il tipo per Satispay
     transfer: { iban: string; holder: string; reason: string };
   };
 }
@@ -47,7 +47,7 @@ const ContributionModal = ({
   const [amount, setAmount] = useState<number | string>('');
   const [contributorName, setContributorName] = useState('');
   const [contributorSurname, setContributorSurname] = useState('');
-  const [contributorEmail, setContributorEmail] = useState(''); // Nuovo stato per l'email
+  const [contributorEmail, setContributorEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +57,7 @@ const ContributionModal = ({
       setAmount('');
       setContributorName('');
       setContributorSurname('');
-      setContributorEmail(''); // Resetta email
+      setContributorEmail('');
       setMessage('');
       setError(null);
       setIsLoading(false);
@@ -85,7 +85,6 @@ const ContributionModal = ({
   };
 
   const isValidEmail = (email: string) => {
-    // Semplice regex per validazione email
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
@@ -113,15 +112,14 @@ const ContributionModal = ({
         contributionAmount,
         contributorName.trim(),
         contributorSurname.trim(),
-        contributorEmail.trim(), // Passa l'email
+        contributorEmail.trim(),
         message.trim()
       );
     } catch (err) {
       console.error("Errore durante la conferma del contributo:", err);
       setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
-      setIsLoading(false); // Assicurati che isLoading sia false in caso di errore
+      setIsLoading(false);
     }
-    // isLoading sarà gestito dalla funzione chiamante o da un eventuale finally block se necessario
   };
 
   const getPaymentInstructions = () => {
@@ -152,10 +150,12 @@ const ContributionModal = ({
             <Terminal className="h-4 w-4" />
             <AlertTitle>Istruzioni Satispay</AlertTitle>
             <AlertDescription>
-              {paymentDetails.satispay ? (
+              {paymentDetails.satispay && paymentDetails.satispay.link ? ( // Controllo se link esiste
                 <>
                   Invia il tuo contributo tramite Satispay a: <br />
-                  <span className="font-medium">{paymentDetails.satispay}</span>
+                  <a href={paymentDetails.satispay.link} target="_blank" rel="noopener noreferrer" className="font-medium text-pink-600 hover:underline"> {/* Usa il link */}
+                    {paymentDetails.satispay.text} {/* Mostra il testo */}
+                  </a>
                   <br />Ricorda di specificare "{product.name}" nella causale.
                 </>
               ) : (
@@ -227,7 +227,6 @@ const ContributionModal = ({
               disabled={calculatedRemaining <= 0}
             />
           </div>
-          {/* Campo Email Contributore */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="contributorEmail" className="text-right">
               Email*
@@ -239,7 +238,7 @@ const ContributionModal = ({
                 type="email"
                 value={contributorEmail}
                 onChange={(e) => setContributorEmail(e.target.value)}
-                className="pl-10" // Padding per l'icona
+                className="pl-10"
                 placeholder="latua@email.com"
                 disabled={calculatedRemaining <= 0}
                 />
@@ -314,8 +313,8 @@ const ContributionModal = ({
                 calculatedRemaining <= 0 ||
                 !contributorName.trim() ||
                 !contributorSurname.trim() ||
-                !contributorEmail.trim() || // Disabilita se email vuota
-                !isValidEmail(contributorEmail) // Disabilita se email non valida
+                !contributorEmail.trim() ||
+                !isValidEmail(contributorEmail)
             }
            >
             {isLoading ? 'Confermando...' : 'Conferma Contributo'}

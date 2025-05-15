@@ -42,7 +42,10 @@ const Index = () => {
 
   const paymentDetails = {
     paypal: 'https://paypal.me/andreaesse',
-    satispay: 'Andrea Savarese / 3496683055',
+    satispay: { // Modificato per includere testo e link
+      text: 'Andrea Savarese / 3496683055',
+      link: 'https://www.satispay.com/app/match/link/user/S6Y-CON--81E65BA2-CA54-43C0-A81C-360988ABDB7C',
+    },
     transfer: {
       iban: 'IT05T0347501605CC0011883024',
       holder: 'Andrea Savarese e Ilaria Beatrice Leoncino',
@@ -99,7 +102,7 @@ const Index = () => {
     amount: number,
     contributorName: string,
     contributorSurname: string,
-    contributorEmail: string, // Accetta contributorEmail
+    contributorEmail: string,
     message: string
   ) => {
     const currentProduct = products.find(p => p.id === productId);
@@ -135,7 +138,7 @@ const Index = () => {
             contributionAmount: amount,
             contributorName: contributorName,
             contributorSurname: contributorSurname,
-            contributorEmail: contributorEmail, // Passa contributorEmail
+            contributorEmail: contributorEmail,
             message: message,
           },
         });
