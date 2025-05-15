@@ -122,10 +122,9 @@ const Index = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        // Tentativo di sintassi alternativa per ordinamento e limite nell'embedded select
-        // Specifica l'ordinamento come parte della colonna e poi il limite
-        .select('*, image_urls, is_priority, contributions(contributor_name, contributor_surname, created_at.desc, limit.eq.3)')
-        .order('created_at', { ascending: false }); // Questo ordina i prodotti principali, non i contributi embedded
+        // Seleziona i contributi senza ordinamento o limite embedded
+        .select('*, image_urls, is_priority, contributions(contributor_name, contributor_surname, created_at)')
+        .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
 
