@@ -85,7 +85,6 @@ export default {
             height: "0",
           },
         },
-        // Nuove keyframes per fade-in e slide-up
         "fade-in-up": {
           "0%": {
             opacity: "0",
@@ -96,12 +95,22 @@ export default {
             transform: "translateY(0)",
           },
         },
+        // Nuova keyframe per l'animazione del gradiente
+        "gradient-shift": {
+          "0%, 100%": {
+            "background-position": "0% 50%",
+          },
+          "50%": {
+            "background-position": "100% 50%",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        // Nuova animazione
         "fade-in-up": "fade-in-up 0.6s ease-out forwards",
+        // Nuova animazione per il gradiente
+        "gradient-shift": "gradient-shift 3s ease infinite",
       },
     },
   },
