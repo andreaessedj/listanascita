@@ -298,23 +298,31 @@ const Index = () => {
         </h1>
         <p className={cn("mt-2 text-2xl text-gray-600", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.3s' }}>Vi Presentano</p>
 
+        {/* Icona e testo Figlio/a */}
+        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
+          <Baby className="h-10 w-10 text-blue-500" />
+          <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
+            Figlio/a
+          </p>
+        </div>
+
         {/* Data Presunta Parto */}
-        <p className={cn("mt-4 text-xl font-semibold text-gray-700", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
+        <p className={cn("mt-4 text-xl font-semibold text-gray-700", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
            Data Presunta Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
         </p>
 
         {/* Countdown o Messaggio Finale */}
-        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
+        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
           {timeLeft.isFinished ? (
             <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
               Finalmente con noi!
             </p>
           ) : (
             <>
-              <Baby className="h-10 w-10 text-blue-500" />
+              {/* Rimosso: <Baby className="h-10 w-10 text-blue-500" /> */}
               <div className="flex flex-col items-center">
                  <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
-                   Mancano
+                   Al tuo Arrivo
                  </p>
                  {/* Countdown in stile tabellone */}
                  <div className="flex space-x-2 text-gray-100 font-mono text-2xl font-bold">
@@ -346,7 +354,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
-        <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
+        <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.7s' }}>
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
            <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -371,7 +379,7 @@ const Index = () => {
         </div>
 
         {/* Pulsanti di condivisione per l'intera lista */}
-        <div className={cn("flex justify-center mb-8", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.7s' }}>
+        <div className={cn("flex justify-center mb-8", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.8s' }}>
            <ShareButtons title={shareTitle} text={shareText} url={currentUrl} />
         </div>
 
@@ -400,7 +408,7 @@ const Index = () => {
               <div
                  key={product.id}
                  className={cn(loading ? 'opacity-0' : 'animate-fade-in-up')}
-                 style={{ animationDelay: `${0.8 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
+                 style={{ animationDelay: `${0.9 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
               >
                 <ProductCard
                   product={product}
@@ -413,7 +421,7 @@ const Index = () => {
         )}
       </main>
 
-      <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.8 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
+      <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.9 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
         <Link to="/admin" className="text-sm text-gray-500 hover:text-gray-700 underline">
           Admin
