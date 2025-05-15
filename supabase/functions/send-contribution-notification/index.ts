@@ -42,18 +42,18 @@ serve(async (req) => {
     });
 
     console.log("Attempting to parse request body...");
-    const { productId, productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message } = await req.json(); // Aggiunto productId
-    console.log("Request body parsed:", { productId, productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message });
+    const { productId, productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message, paymentMethod } = await req.json(); // Aggiunto productId e paymentMethod
+    console.log("Request body parsed:", { productId, productName, contributionAmount, contributorName, contributorSurname, contributorEmail, message, paymentMethod });
 
-    if (!productId || !productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname || !contributorEmail) {
+    if (!productId || !productName || typeof contributionAmount === 'undefined' || !contributorName || !contributorSurname || !contributorEmail || !paymentMethod) {
       console.error("Dati mancanti nel body.");
-      return new Response(JSON.stringify({ error: "Dati mancanti: productId, productName, contributionAmount, contributorName, contributorSurname e contributorEmail sono richiesti." }), {
+      return new Response(JSON.stringify({ error: "Dati mancanti: productId, productName, contributionAmount, contributorName, contributorSurname, contributorEmail e paymentMethod sono richiesti." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // --- Aggiorna l'importo contribuito nel prodotto (spostato qui dalla UI) ---
+    // --- Aggiorna l'importo contribuito nel prodotto ---
     console.log(`Attempting to update contributed_amount for product ${productId}...`);
     // Prima recupera l'importo attuale per calcolare il nuovo totale
     const { data: productData, error: fetchProductError } = await supabase
@@ -110,6 +110,23 @@ serve(async (req) => {
         console.log("Contribution record inserted successfully.");
     }
 
+    // --- Libera la prenotazione per questo prodotto ---
+    console.log(`Attempting to clear reservation for product ${productId}...`);
+     const { error: clearReservationError } = await supabase
+      .from('products')
+      .update({
+        reserved_by_email: null,
+        reserved_until: null,
+      })
+      .match({ id: productId });
+
+    if (clearReservationError) {
+        console.error("Errore nel liberare la prenotazione:", clearReservationError.message);
+        // Logga l'errore ma non bloccare la risposta di successo, l'aggiornamento principale è avvenuto.
+    } else {
+        console.log(`Reservation cleared successfully for product ${productId}.`);
+    }
+
 
     // --- Email di Notifica al Proprietario ---
     const ownerEmail = "andreaesse@live.it"; // Email destinatario (proprietario lista)
@@ -122,6 +139,7 @@ serve(async (req) => {
       <p>Hai ricevuto un nuovo contributo di <strong>€${contributionAmount.toFixed(2)}</strong> per il prodotto: <strong>${productName}</strong>.</p>
       <p>Da: <strong>${contributorName} ${contributorSurname}</strong></p>
       <p>Email del contributore: <strong>${contributorEmail}</strong></p>
+      <p>Metodo di pagamento indicato: <strong>${paymentMethod}</strong></p>
       ${message ? `<p>Messaggio: ${message}</p>` : ''}
       <p>L'importo totale contribuito per questo regalo è ora di <strong>€${newContributedAmount.toFixed(2)}</strong>.</p>
       <p>Controlla la tua lista nascita per i dettagli.</p>

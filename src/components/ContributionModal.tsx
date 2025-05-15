@@ -15,23 +15,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { Product } from '@/types/product';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Mail } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client'; // Importa supabase per chiamare la Edge Function
+import { showError as showErrorToast, showSuccess } from '@/utils/toast'; // Importa le toast
 
 interface ContributionModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
   paymentMethod: 'paypal' | 'satispay' | 'transfer' | null;
+  // La funzione onConfirmContribution ora gestirà l'intera logica, inclusa la prenotazione
   onConfirmContribution: (
     productId: string,
     amount: number,
     contributorName: string,
     contributorSurname: string,
     contributorEmail: string,
-    message: string
+    message: string,
+    paymentMethod: 'paypal' | 'satispay' | 'transfer' // Passa anche il metodo di pagamento
   ) => Promise<void>;
   paymentDetails: {
     paypal: string;
-    satispay: { text: string; link: string }; // Aggiornato il tipo per Satispay
+    satispay: { text: string; link: string };
     transfer: { iban: string; holder: string; reason: string };
   };
 }
@@ -76,8 +80,9 @@ const ContributionModal = ({
     const value = e.target.value;
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
        const numericValue = parseFloat(value);
-       if (!isNaN(numericValue) && numericValue > maxContribution) {
-         setAmount(maxContribution.toFixed(2));
+       // Permetti di inserire un importo superiore al rimanente, ma non superiore al prezzo totale
+       if (!isNaN(numericValue) && numericValue > product.price) {
+         setAmount(product.price.toFixed(2));
        } else {
          setAmount(value);
        }
@@ -90,9 +95,9 @@ const ContributionModal = ({
 
   const handleConfirm = async () => {
     const contributionAmount = parseFloat(amount.toString());
-    const epsilon = 0.001;
-    if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > maxContribution + epsilon) {
-       setError(`Inserisci un importo valido (massimo ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
+    const epsilon = 0.001; // Tolleranza per floating point
+    if (isNaN(contributionAmount) || contributionAmount <= 0 || contributionAmount > product.price + epsilon) {
+       setError(`Inserisci un importo valido (massimo ${product.price.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}).`);
        return;
     }
     if (!contributorName.trim() || !contributorSurname.trim()) {
@@ -106,18 +111,46 @@ const ContributionModal = ({
 
     setError(null);
     setIsLoading(true);
+
     try {
+      // Chiamata alla Edge Function per prenotare il prodotto
+      console.log("Attempting to reserve product via Edge Function...");
+      const { data: reserveData, error: reserveError } = await supabase.functions.invoke('reserve-product', {
+        body: {
+          productId: product.id,
+          contributorEmail: contributorEmail.trim(),
+        },
+      });
+
+      if (reserveError) {
+        console.error('Errore durante la prenotazione:', reserveError);
+        // Gestisci errori specifici dalla Edge Function se necessario
+        setError(reserveError.message || "Si è verificato un errore durante la prenotazione. Riprova.");
+        setIsLoading(false);
+        return; // Interrompi il processo se la prenotazione fallisce
+      }
+
+      console.log('Prenotazione riuscita:', reserveData);
+
+      // Se la prenotazione ha successo, procedi con la conferma del contributo
+      // La funzione onConfirmContribution (in Index.tsx) chiamerà la Edge Function di notifica
+      // che ora includerà la logica per liberare la prenotazione.
       await onConfirmContribution(
         product.id,
         contributionAmount,
         contributorName.trim(),
         contributorSurname.trim(),
         contributorEmail.trim(),
-        message.trim()
+        message.trim(),
+        paymentMethod // Passa il metodo di pagamento
       );
+
+      // La logica di chiusura modale e toast di successo è ora in onConfirmContribution
+      // setIsLoading(false); // Verrà gestito dalla funzione chiamante
+
     } catch (err) {
-      console.error("Errore durante la conferma del contributo:", err);
-      setError("Si è verificato un errore durante l'aggiornamento del contributo. Riprova.");
+      console.error("Errore generale nel flusso di conferma contributo:", err);
+      setError("Si è verificato un errore inatteso. Riprova.");
       setIsLoading(false);
     }
   };
@@ -211,7 +244,7 @@ const ContributionModal = ({
               onChange={(e) => setContributorName(e.target.value)}
               className="col-span-3"
               placeholder="Il tuo nome"
-              disabled={calculatedRemaining <= 0}
+              disabled={calculatedRemaining <= 0 || isLoading} // Disabilita anche durante il caricamento
             />
           </div>
            <div className="grid grid-cols-4 items-center gap-4">
@@ -224,7 +257,7 @@ const ContributionModal = ({
               onChange={(e) => setContributorSurname(e.target.value)}
               className="col-span-3"
               placeholder="Il tuo cognome"
-              disabled={calculatedRemaining <= 0}
+              disabled={calculatedRemaining <= 0 || isLoading} // Disabilita anche durante il caricamento
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -240,7 +273,7 @@ const ContributionModal = ({
                 onChange={(e) => setContributorEmail(e.target.value)}
                 className="pl-10"
                 placeholder="latua@email.com"
-                disabled={calculatedRemaining <= 0}
+                disabled={calculatedRemaining <= 0 || isLoading} // Disabilita anche durante il caricamento
                 />
             </div>
           </div>
@@ -254,12 +287,12 @@ const ContributionModal = ({
               type="number"
               step="0.01"
               min="0.01"
-              max={maxContribution.toFixed(2)}
+              max={product.price.toFixed(2)} // Max è il prezzo totale
               value={amount}
               onChange={handleAmountChange}
               className="col-span-3"
-              placeholder={`Max ${maxContribution.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`}
-              disabled={calculatedRemaining <= 0}
+              placeholder={`Max ${product.price.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`}
+              disabled={calculatedRemaining <= 0 || isLoading} // Disabilita anche durante il caricamento
             />
           </div>
 
@@ -274,7 +307,7 @@ const ContributionModal = ({
               className="col-span-3"
               rows={3}
               placeholder="Un messaggio per Ilaria e Andrea (opzionale)"
-              disabled={calculatedRemaining <= 0}
+              disabled={calculatedRemaining <= 0 || isLoading} // Disabilita anche durante il caricamento
             />
           </div>
 
@@ -294,12 +327,12 @@ const ContributionModal = ({
           )}
 
            <p className="text-xs text-gray-500 mt-2 text-center">
-             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", riceverai una mail di riepilogo e potrai procedere con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente una volta ricevuto."}
+             {calculatedRemaining > 0 && "Dopo aver cliccato \"Conferma Contributo\", il regalo verrà riservato per te per un breve periodo e riceverai una mail di riepilogo. Potrai quindi procedere con il pagamento usando le istruzioni sopra. L'importo verrà aggiornato manualmente sulla lista una volta ricevuto."}
            </p>
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}> {/* Disabilita anche durante il caricamento */}
               Annulla
             </Button>
           </DialogClose>

@@ -54,121 +54,142 @@ const Index = () => {
     },
   };
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-       setLoading(true);
-      setError(null);
-      try {
-        const { data, error: supabaseError } = await supabase
-          .from('products')
-          .select('*, image_urls, is_priority, reserved_by_email, reserved_until') // Seleziona anche i campi di prenotazione
-          .order('created_at', { ascending: false });
+  // Funzione per recuperare i prodotti, inclusi i campi di prenotazione
+  const fetchProducts = async () => {
+     setLoading(true);
+    setError(null);
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('products')
+        .select('*, image_urls, is_priority, reserved_by_email, reserved_until') // Seleziona anche i campi di prenotazione
+        .order('created_at', { ascending: false });
 
-        if (supabaseError) throw supabaseError;
+      if (supabaseError) throw supabaseError;
 
-        const formattedProducts = data?.map(item => ({
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          imageUrl: item.image_url,
-          imageUrls: item.image_urls || [],
-          contributedAmount: item.contributed_amount,
-          category: item.category,
-          originalUrl: item.original_url,
-          createdAt: item.created_at,
-          isPriority: item.is_priority,
-          reservedByEmail: item.reserved_by_email, // Mappa reserved_by_email
-          reservedUntil: item.reserved_until, // Mappa reserved_until
-        })) || [];
-        setProducts(formattedProducts);
+      const formattedProducts = data?.map(item => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        imageUrl: item.image_url,
+        imageUrls: item.image_urls || [],
+        contributedAmount: item.contributed_amount,
+        category: item.category,
+        originalUrl: item.original_url,
+        createdAt: item.created_at,
+        isPriority: item.is_priority,
+        reservedByEmail: item.reserved_by_email, // Mappa reserved_by_email
+        reservedUntil: item.reserved_until, // Mappa reserved_until
+      })) || [];
 
-      } catch (err: any) {
-        console.error("Errore nel caricamento prodotti:", err);
-        setError("Impossibile caricare i prodotti. Riprova più tardi.");
-        showErrorToast("Errore nel caricamento dei prodotti.");
-      } finally {
-        setLoading(false);
+      // Aggiorna lo stato locale solo se ci sono dati validi
+      if (formattedProducts) {
+         setProducts(formattedProducts);
       }
-    };
+
+
+    } catch (err: any) {
+      console.error("Errore nel caricamento prodotti:", err);
+      setError("Impossibile caricare i prodotti. Riprova più tardi.");
+      showErrorToast("Errore nel caricamento dei prodotti.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProducts();
-  }, []);
+
+    // Imposta un intervallo per rifetchare i prodotti periodicamente
+    // Questo aiuta a mantenere aggiornato lo stato delle prenotazioni scadute
+    const intervalId = setInterval(fetchProducts, 60000); // Aggiorna ogni 60 secondi
+
+    // Pulisci l'intervallo quando il componente viene smontato
+    return () => clearInterval(intervalId);
+
+  }, []); // Dipendenze vuote per eseguire solo al mount/unmount
+
 
   const handleOpenContributeModal = (product: Product, method: PaymentMethod) => {
-    // Qui potremmo aggiungere la logica per tentare la prenotazione
-    // Per ora, apriamo semplicemente il modale con i dati del prodotto
+     // Controlla subito se è completato o riservato (con prenotazione valida)
+     const isCompleted = product.contributedAmount >= product.price;
+     const isReserved = product.reservedByEmail && product.reservedUntil && new Date(product.reservedUntil) > new Date();
+
+     if (isCompleted) {
+        showErrorToast("Questo regalo è già stato completato.");
+        return;
+     }
+     if (isReserved) {
+        showErrorToast(`Questo regalo è già riservato fino al ${new Date(product.reservedUntil!).toLocaleString('it-IT')}.`);
+        return;
+     }
+
+     // Se non è completato né riservato, apri il modale
     setContributionModalState({ isOpen: true, product, paymentMethod: method });
   };
+
   const handleCloseContributionModal = () => {
     setContributionModalState({ isOpen: false, product: null, paymentMethod: null });
+    // Dopo aver chiuso il modale (sia per annullamento che per successo),
+    // rifetchiamo i prodotti per assicurarci che lo stato sia aggiornato,
+    // specialmente per le prenotazioni.
+    fetchProducts();
   };
 
+  // Questa funzione viene chiamata dal modale DOPO che l'utente clicca "Conferma Contributo"
+  // e DOPO che il modale ha tentato la prenotazione tramite la Edge Function 'reserve-product'.
+  // Se arriviamo qui, la prenotazione è stata tentata (con successo o fallimento gestito nel modale).
+  // Ora chiamiamo la Edge Function di notifica che gestirà l'aggiornamento finale e la liberazione della prenotazione.
   const handleConfirmContribution = async (
     productId: string,
     amount: number,
     contributorName: string,
     contributorSurname: string,
     contributorEmail: string,
-    message: string
+    message: string,
+    paymentMethod: 'paypal' | 'satispay' | 'transfer' // Riceve il metodo di pagamento
   ) => {
     const currentProduct = products.find(p => p.id === productId);
     if (!currentProduct) {
       showErrorToast("Errore: Prodotto non trovato.");
-      throw new Error("Product not found");
+      // Non lanciare l'errore, gestiscilo con la toast
+      return;
     }
-    const newContributedAmount = Math.round((currentProduct.contributedAmount + amount) * 100) / 100;
 
     try {
-      // Nota: L'aggiornamento del contributed_amount e l'inserimento del record di contribution
-      // sono stati spostati nella Edge Function 'send-contribution-notification'
-      // per garantire che avvengano insieme alla notifica email.
-      // Qui chiamiamo solo la Edge Function.
-
-      showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille! Riceverai una mail di conferma.`);
-      handleCloseContributionModal();
-      // Aggiorna lo stato locale immediatamente per feedback visivo rapido
-       setProducts(prevProducts =>
-        prevProducts.map(p =>
-          p.id === productId
-            ? { ...p, contributedAmount: newContributedAmount }
-            : p
-        )
-      );
-
-
-      console.log("Tentativo di chiamare la Edge Function per la notifica email e l'aggiornamento DB...");
+      // Chiamata alla Edge Function per inviare notifiche, aggiornare DB e liberare prenotazione
+      console.log("Tentativo di chiamare la Edge Function per la notifica email, aggiornamento DB e liberazione prenotazione...");
       const { error: functionError } = await supabase.functions.invoke('send-contribution-notification', {
         body: {
-          productId: productId, // Passa l'ID del prodotto alla Edge Function
+          productId: productId,
           productName: currentProduct.name,
           contributionAmount: amount,
           contributorName: contributorName,
           contributorSurname: contributorSurname,
           contributorEmail: contributorEmail,
           message: message,
+          paymentMethod: paymentMethod, // Passa il metodo di pagamento alla Edge Function
         },
       });
+
       if (functionError) {
-        console.error('Errore chiamata Edge Function:', functionError);
-        // Potresti voler gestire questo errore in modo più robusta,
-        // magari ripristinando lo stato locale o mostrando un avviso.
+        console.error('Errore chiamata Edge Function send-contribution-notification:', functionError);
         showErrorToast("Errore nell'invio della notifica/aggiornamento. Contatta gli sposi.");
       } else {
-        console.log('Chiamata Edge Function completata (verifica i log di Supabase).');
-        // Dopo la conferma dalla Edge Function, potresti voler rifetchare i prodotti
-        // per essere sicuro che lo stato sia sincronizzato, anche se l'aggiornamento locale è già avvenuto.
-        // fetchProducts(); // Opzionale: rifetch completo per sicurezza
+        console.log('Chiamata Edge Function send-contribution-notification completata (verifica i log di Supabase).');
+        showSuccess(`Contributo di ${amount.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} registrato! Grazie mille! Riceverai una mail di conferma.`);
       }
 
     } catch (err: any) {
       console.error("Errore durante la conferma del contributo (chiamata Edge Function):", err);
       showErrorToast("Si è verificato un errore. Riprova.");
-      // Non rilanciare l'errore qui, è già gestito dalla toast.
     } finally {
-       // La Edge Function gestisce l'aggiornamento del contributed_amount nel DB.
-       // La UI è già stata aggiornata localmente per feedback immediato.
+       // Chiudi il modale e rifetch i prodotti indipendentemente dal successo della chiamata alla Edge Function
+       // (il rifetch gestirà l'aggiornamento visivo e la liberazione della prenotazione se la Edge Function ha funzionato)
+       handleCloseContributionModal();
     }
   };
+
 
   const handleOpenDetailModal = (product: Product) => {
     setDetailModalState({ isOpen: true, product });
@@ -192,6 +213,13 @@ const Index = () => {
       if (!isCompletedA && isCompletedB) return -1;
       if (isCompletedA && !isCompletedB) return 1;
 
+      // Poi ordina per stato di prenotazione (non riservati prima, poi riservati validi, poi riservati scaduti)
+      const isReservedA = a.reservedByEmail && a.reservedUntil && new Date(a.reservedUntil) > new Date();
+      const isReservedB = b.reservedByEmail && b.reservedUntil && new Date(b.reservedUntil) > new Date();
+
+      if (!isReservedA && isReservedB) return -1; // A non riservato, B riservato -> A prima
+      if (isReservedA && !isReservedB) return 1;  // A riservato, B non riservato -> B prima
+
       // Infine ordina in base al criterio selezionato
       let comparison = 0;
       if (sortCriteria === 'name') {
@@ -201,11 +229,9 @@ const Index = () => {
       } else if (sortCriteria === 'createdAt') {
         comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       }
-      // Se il criterio è 'priority', l'ordinamento è già stato fatto sopra,
-      // ma manteniamo la logica per completezza (anche se ridondante qui).
+      // Se il criterio è 'priority', l'ordinamento è già stato fatto sopra
       else if (sortCriteria === 'priority') {
-         // L'ordinamento per priorità è già gestito all'inizio
-         comparison = 0; // Nessun ulteriore ordinamento per questo criterio qui
+         comparison = 0;
       }
 
 
@@ -318,7 +344,7 @@ const Index = () => {
         onClose={handleCloseContributionModal}
         product={contributionModalState.product}
         paymentMethod={contributionModalState.paymentMethod}
-        onConfirmContribution={handleConfirmContribution}
+        onConfirmContribution={handleConfirmContribution} // Passa la funzione aggiornata
         paymentDetails={paymentDetails}
       />
       <ProductDetailModal
