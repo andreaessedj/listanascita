@@ -254,7 +254,8 @@ const Index = () => {
     const randomIndex = Math.floor(Math.random() * availableProducts.length);
     const suggested = availableProducts[randomIndex];
     setSuggestedProductId(suggested.id);
-  }, [sortedProducts]); // Dipende da sortedProducts
+  }, [products, sortCriteria, sortDirection]); // Dipende da products, sortCriteria, sortDirection
+
 
   // Effetto per scrollare al regalo suggerito
   useEffect(() => {
