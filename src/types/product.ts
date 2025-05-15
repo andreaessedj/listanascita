@@ -1,7 +1,8 @@
 export interface EmbeddedContribution {
   contributor_name: string;
   contributor_surname: string;
-  created_at: string; // Keep created_at for ordering within the embed
+  created_at: string;
+  amount?: number; // Made amount optional
 }
 
 export interface Product {

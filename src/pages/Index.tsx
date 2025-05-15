@@ -122,7 +122,8 @@ const Index = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls, is_priority, contributions(contributor_name, contributor_surname, created_at, amount, order=created_at.desc, limit=3)') // Aggiunto select per contributi
+        // Rimosso 'amount' dalla select embedded per test
+        .select('*, image_urls, is_priority, contributions(contributor_name, contributor_surname, created_at, order=created_at.desc, limit=3)')
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
