@@ -21,6 +21,8 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils'; // Importa la funzione cn
 import { differenceInSeconds, addYears, addMonths, addDays, addHours, addMinutes, format } from 'date-fns'; // Importa funzioni per il calcolo del tempo
 import { it } from 'date-fns/locale'; // Importa la locale italiana
+import FlipDigit from '@/components/FlipDigit'; // Importa il nuovo componente FlipDigit
+
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt' | 'priority'; // Aggiunto 'priority'
@@ -44,13 +46,13 @@ const calculateTimeLeft = (targetDate: Date) => {
   totalSeconds -= months * secondsInMonth;
 
   const days = Math.floor(totalSeconds / secondsInDay);
-  totalSeconds -= days * secondsInDay;
+  totalSeconds -= days / secondsInDay;
 
   const hours = Math.floor(totalSeconds / secondsInHour);
-  totalSeconds -= hours * secondsInHour;
+  totalSeconds -= hours / secondsInHour;
 
   const minutes = Math.floor(totalSeconds / secondsInMinute);
-  totalSeconds -= minutes * secondsInMinute;
+  totalSeconds -= minutes / secondsInMinute;
 
   const seconds = Math.floor(totalSeconds);
 
@@ -312,41 +314,23 @@ const Index = () => {
         </p>
 
         {/* Countdown o Messaggio Finale */}
-        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
+        <div className={cn("mt-4 inline-flex flex-col items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
           {timeLeft.isFinished ? (
             <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
               Finalmente con noi!
             </p>
           ) : (
             <>
-              {/* Rimosso: <Baby className="h-10 w-10 text-blue-500" /> */}
-              <div className="flex flex-col items-center">
-                 <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
-                   Al tuo Arrivo
-                 </p>
-                 {/* Countdown in stile tabellone */}
-                 <div className="flex space-x-2 text-gray-100 font-mono text-2xl font-bold">
-                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
-                       {String(timeLeft.months).padStart(2, '0')}
-                       <div className="text-xs font-normal mt-1">Mesi</div>
-                    </div>
-                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
-                       {String(timeLeft.days).padStart(2, '0')}
-                       <div className="text-xs font-normal mt-1">Giorni</div>
-                    </div>
-                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
-                       {String(timeLeft.hours).padStart(2, '0')}
-                       <div className="text-xs font-normal mt-1">Ore</div>
-                    </div>
-                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
-                       {String(timeLeft.minutes).padStart(2, '0')}
-                       <div className="text-xs font-normal mt-1">Minuti</div>
-                    </div>
-                    <div className="bg-gray-800 rounded p-1 min-w-[40px] text-center">
-                       {String(timeLeft.seconds).padStart(2, '0')}
-                       <div className="text-xs font-normal mt-1">Secondi</div>
-                    </div>
-                 </div>
+              <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500 mb-1">
+                Al tuo Arrivo
+              </p>
+              {/* Countdown in stile tabellone - Using FlipDigit */}
+              <div className="flex space-x-2">
+                 <FlipDigit value={timeLeft.months} label="Mesi" />
+                 <FlipDigit value={timeLeft.days} label="Giorni" />
+                 <FlipDigit value={timeLeft.hours} label="Ore" />
+                 <FlipDigit value={timeLeft.minutes} label="Minuti" />
+                 <FlipDigit value={timeLeft.seconds} label="Secondi" />
               </div>
             </>
           )}
