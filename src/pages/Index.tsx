@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils'; // Importa la funzione cn
 
 type PaymentMethod = 'paypal' | 'satispay' | 'transfer';
 type SortCriteria = 'name' | 'price' | 'createdAt' | 'priority'; // Aggiunto 'priority'
@@ -236,14 +237,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 text-gray-700 relative overflow-hidden">
       <header className="py-8 text-center relative z-10 bg-white/30 backdrop-blur-sm mb-4 shadow-sm">
-         <div className="inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2">
+         <div className={cn("inline-flex items-center justify-center p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg mb-2", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.1s' }}>
           <Heart className="h-8 w-8 text-pink-400" />
         </div>
-        <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600">
+        <h1 className={cn("text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.2s' }}>
           Ilaria & Andrea
         </h1>
-        <p className="mt-2 text-2xl text-gray-600">Vi Presentano</p>
-        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow">
+        <p className={cn("mt-2 text-2xl text-gray-600", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.3s' }}>Vi Presentano</p>
+        <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
           <Baby className="h-10 w-10 text-blue-500" />
           <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
             Figlio/a
@@ -252,7 +253,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
+        <div className={cn("flex flex-col sm:flex-row justify-between items-center mb-10 gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
           <h2 className="text-3xl font-semibold text-gray-700">La Nostra Lista Nascita</h2>
            <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -277,7 +278,7 @@ const Index = () => {
         </div>
 
         {/* Pulsanti di condivisione per l'intera lista */}
-        <div className="flex justify-center mb-8">
+        <div className={cn("flex justify-center mb-8", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.6s' }}>
            <ShareButtons title={shareTitle} text={shareText} url={currentUrl} />
         </div>
 
@@ -302,19 +303,24 @@ const Index = () => {
         )}
         {!loading && !error && sortedProducts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {sortedProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onOpenContributeModal={handleOpenContributeModal}
-                onOpenDetailModal={handleOpenDetailModal}
-              />
+            {sortedProducts.map((product, index) => (
+              <div
+                 key={product.id}
+                 className={cn(loading ? 'opacity-0' : 'animate-fade-in-up')}
+                 style={{ animationDelay: `${0.7 + index * 0.1}s` }} // Ritardo crescente per effetto a cascata
+              >
+                <ProductCard
+                  product={product}
+                  onOpenContributeModal={handleOpenContributeModal}
+                  onOpenDetailModal={handleOpenDetailModal}
+                />
+              </div>
             ))}
           </div>
         )}
       </main>
 
-      <footer className="py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+      <footer className={cn("py-8 text-center text-gray-500 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-4", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: `${0.7 + sortedProducts.length * 0.1 + 0.2}s` }}> {/* Ritardo dopo le card */}
         <p>&copy; {new Date().getFullYear()} Ilaria & Andrea. Con amore.</p>
         <Link to="/our-story" className="text-sm text-gray-500 hover:text-gray-700 underline">
           La Nostra Storia
