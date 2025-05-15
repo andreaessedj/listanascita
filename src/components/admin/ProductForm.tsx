@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch'; // Importa il componente Switch
+import { Check } from 'lucide-react'; // Importa l'icona Check
 
-// Omettiamo solo 'id' dal form, includiamo contributedAmount
+// Omettiamo solo 'id' dal form, includiamo contributedAmount e isPriority
 export type ProductFormData = Omit<Product, 'id'> & {
   additionalImageUrlsText?: string;
 };
@@ -27,6 +29,7 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
     contributedAmount: 0, // Includi contributedAmount
     originalUrl: '',
     category: '',
+    isPriority: false, // Aggiungi isPriority con valore di default false
     additionalImageUrlsText: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ProductFormData, string>>>({});
@@ -42,6 +45,7 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
         contributedAmount: initialData.contributedAmount, // Carica contributedAmount esistente
         originalUrl: initialData.originalUrl || '',
         category: initialData.category || '',
+        isPriority: initialData.isPriority || false, // Carica isPriority esistente
         additionalImageUrlsText: (initialData.imageUrls || [])
           .filter(url => url !== initialData.imageUrl)
           .join('\n'),
@@ -56,6 +60,7 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
         contributedAmount: 0, // Default a 0 per nuovi prodotti
         originalUrl: '',
         category: '',
+        isPriority: false, // Default a false per nuovi prodotti
         additionalImageUrlsText: '',
       });
     }
@@ -79,6 +84,11 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
     }
   };
 
+  const handlePriorityChange = (checked: boolean) => {
+    setFormData(prev => ({ ...prev, isPriority: checked }));
+  };
+
+
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof ProductFormData, string>> = {};
     if (!formData.name.trim()) newErrors.name = 'Il nome è obbligatorio.';
@@ -95,7 +105,7 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    // Passa l'intero formData, inclusi imageUrls e contributedAmount
+    // Passa l'intero formData, inclusi imageUrls, contributedAmount e isPriority
     await onSubmit(formData);
   };
 
@@ -134,6 +144,17 @@ const ProductForm = ({ initialData, onSubmit, onCancel, isLoading }: ProductForm
            <p className="mt-1 text-xs text-gray-500">Modifica solo se necessario per correggere l'importo.</p>
         </div>
       )}
+
+      {/* Campo Priorità */}
+      <div className="flex items-center justify-between">
+        <Label htmlFor="isPriority">Segna come Prioritario</Label>
+        <Switch
+          id="isPriority"
+          checked={formData.isPriority}
+          onCheckedChange={handlePriorityChange}
+        />
+      </div>
+
 
       {/* Campi Immagini, URL Originale, Categoria... */}
        <div>

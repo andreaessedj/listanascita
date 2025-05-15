@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 import { Product } from '@/types/product';
-import { Pencil, Trash2, PlusCircle, Eye } from 'lucide-react'; // Importa Eye icon
+import { Pencil, Trash2, PlusCircle, Eye, Star, Check } from 'lucide-react'; // Importa Eye, Star, Check icons
 import { Skeleton } from "@/components/ui/skeleton";
 import { showError, showSuccess } from '@/utils/toast';
 
@@ -55,7 +55,7 @@ const Admin = () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('products')
-        .select('*, image_urls')
+        .select('*, image_urls, is_priority') // Seleziona anche is_priority
         .order('created_at', { ascending: false });
 
       if (supabaseError) throw supabaseError;
@@ -71,6 +71,7 @@ const Admin = () => {
         category: item.category,
         originalUrl: item.original_url,
         createdAt: item.created_at, // Manteniamo per futuro ordinamento admin
+        isPriority: item.is_priority, // Mappa is_priority
       })) || [];
       setProducts(formattedProducts);
     } catch (err: any) {
@@ -157,6 +158,7 @@ const Admin = () => {
         image_urls: uniqueImageUrls.length > 0 ? uniqueImageUrls : null,
         original_url: formData.originalUrl?.trim() || null,
         category: formData.category?.trim() || null,
+        is_priority: formData.isPriority, // Aggiungi is_priority
       };
 
 
@@ -237,6 +239,7 @@ const Admin = () => {
                 <TableHead className="hidden md:table-cell">Descrizione</TableHead>
                 <TableHead className="text-right">Prezzo (€)</TableHead>
                 <TableHead className="text-right hidden sm:table-cell">Contribuito (€)</TableHead>
+                <TableHead className="text-center">Priorità</TableHead> {/* Nuova colonna */}
                 <TableHead className="hidden lg:table-cell">URL Originale</TableHead>
                 <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
@@ -244,7 +247,7 @@ const Admin = () => {
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground h-24">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground h-24"> {/* Aggiornato colspan */}
                     Nessun prodotto trovato. Clicca su "Aggiungi Prodotto" per iniziare.
                   </TableCell>
                 </TableRow>
@@ -268,6 +271,10 @@ const Admin = () => {
                     </TableCell>
                     <TableCell className="text-right hidden sm:table-cell">
                       {product.contributedAmount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
+                    {/* Cella Priorità */}
+                    <TableCell className="text-center">
+                      {product.isPriority ? <Star className="h-5 w-5 text-yellow-500 mx-auto" fill="currentColor" /> : '-'}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       {product.originalUrl ? (
