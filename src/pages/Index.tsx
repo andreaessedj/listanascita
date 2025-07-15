@@ -82,7 +82,7 @@ const Index = () => {
   // Ref map per le card dei prodotti
   const productRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
-  // Data presunta del parto (19 Gennaio 2026)
+  // Data presunta del parto (10 Gennaio 2026)
   const estimatedDueDate = new Date(2026, 0, 10, 0, 0, 0); // Mese 0 = Gennaio
 
   // Stato e useEffect per il countdown
