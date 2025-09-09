@@ -329,7 +329,7 @@ const Index = () => {
         <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
           <Baby className="h-10 w-10 text-blue-500" />
           <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
-            Figlio/a
+            Bambus
           </p>
         </div>
 
