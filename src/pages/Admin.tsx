@@ -228,6 +228,7 @@ const Admin = () => {
 
   
 const handleSendSingleEmail = async ({ subject, body, recipients }: { subject: string; body: string; recipients: string[] }) => {
+    console.log('USING VERCEL API /api/send-email-single');
     console.log('DEBUG single email recipients:', recipients);
     setIsSendingSingleEmail(true);
     try {
