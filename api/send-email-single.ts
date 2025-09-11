@@ -1,7 +1,8 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// No import of '@vercel/node' to avoid TS2307 on Vercel
 import nodemailer from 'nodemailer';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
+  // CORS / preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
@@ -17,7 +18,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { subject, body, recipients } = (req.body || {}) as {
-      subject?: string; body?: string; recipients?: string[];
+      subject?: string;
+      body?: string;
+      recipients?: string[];
     };
 
     if (!subject || !body) {
@@ -48,14 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const info = await transporter.sendMail({
       from: `Ilaria & Andrea <${user}>`,
-      to: user,
-      bcc: emails,
+      to: user,        // inbox/service mailbox
+      bcc: emails,     // real recipients in BCC
       subject,
       html: body,
     });
 
     res.status(200).json({ ok: true, count: emails.length, messageId: info?.messageId });
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'Internal error' });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg || 'Internal error' });
   }
 }
