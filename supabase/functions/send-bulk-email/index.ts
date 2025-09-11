@@ -1,125 +1,121 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createTransport } from "npm:nodemailer";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
   console.log("Edge Function 'send-bulk-email' invoked.");
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Attempting to read environment variables...");
-    const GMAIL_USER = Deno.env.get("GMAIL_USER");
-    const GMAIL_PASS = Deno.env.get("GMAIL_PASS");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const GMAIL_USER = Deno.env.get("GMAIL_USER")!;
+    const GMAIL_PASS = Deno.env.get("GMAIL_PASS")!;
 
-    if (!GMAIL_USER || !GMAIL_PASS || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Variabili d'ambiente mancanti.");
-      return new Response(JSON.stringify({ error: "Configurazione del server incompleta (variabili d'ambiente mancanti)." }), {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error("Missing Supabase envs.");
+      return new Response(JSON.stringify({ error: "Missing Supabase configuration." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log("Environment variables read successfully.");
 
-    // Crea un client Supabase con la service role key per bypassare RLS e accedere alla tabella contributions
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if (!GMAIL_USER || !GMAIL_PASS) {
+      console.error("Missing Gmail SMTP credentials.");
+      return new Response(JSON.stringify({ error: "Missing email credentials." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const transporter = createTransport({
       service: "gmail",
-      auth: {
-        user: GMAIL_USER,
-        pass: GMAIL_PASS,
-      },
+      auth: { user: GMAIL_USER, pass: GMAIL_PASS },
     });
 
-    console.log("Attempting to parse request body...");
     const { subject, body, recipients } = await req.json();
-    console.log("Request body parsed:", { subject, body: body.substring(0, 100) + '...' }); // Log solo inizio body
+    console.log("Request parsed:", {
+      subject,
+      bodyPreview: typeof body === "string" ? body.slice(0, 80) + "..." : typeof body,
+      recipientsType: Array.isArray(recipients) ? "array" : typeof recipients,
+      recipientsCount: Array.isArray(recipients) ? recipients.length : undefined,
+    });
 
     if (!subject || !body) {
-      console.error("Oggetto o corpo email mancanti nel body.");
       return new Response(JSON.stringify({ error: "Oggetto e corpo dell'email sono richiesti." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    
-    // Se arriva un override di destinatari, usa quello; altrimenti prendi tutti i contribuenti
-    let uniqueEmails: string[] = [];
-    if (Array.isArray(recipients) && recipients.length > 0) {
-      uniqueEmails = Array.from(new Set(recipients.map((e: any) => String(e).trim()).filter(Boolean)));
-      console.log(`Using override recipients: ${uniqueEmails.length} addresses.`);
+    // ---------- PICK TARGET EMAILS (OVERRIDE FIRST) ----------
+    let targetEmails: string[] = [];
+    if (Array.isArray(recipients) && recipients.filter(Boolean).length > 0) {
+      targetEmails = Array.from(
+        new Set(recipients.map((e) => String(e).trim().toLowerCase()).filter(Boolean))
+      );
+      console.log(`[OVERRIDE] Using provided recipients: ${targetEmails.length}`);
     } else {
-      // --- Recupera tutte le email uniche dalla tabella 'contributions' ---
-// --- Recupera tutte le email uniche dalla tabella 'contributions' ---
-    console.log("Attempting to fetch unique contributor emails...");
-    const { data: emailsData, error: fetchEmailsError } = await supabase
-      .from('contributions')
-      .select('contributor_email');
+      console.log("[BULK] Fetching all unique contributor emails from 'contributions'");
+      const { data: emailsData, error: fetchErr } = await supabase
+        .from("contributions")
+        .select("contributor_email");
 
-    if (fetchEmailsError) {
-        console.error("Errore nel recupero delle email:", fetchEmailsError.message);
-         return new Response(JSON.stringify({ error: "Errore nel recupero degli indirizzi email dei contribuenti." }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (fetchErr) {
+        console.error("Supabase fetch error:", fetchErr);
+        return new Response(JSON.stringify({ error: "Errore nel recupero delle email." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      targetEmails = Array.from(
+        new Set(
+          (emailsData || [])
+            .map((r: any) => (r?.contributor_email || "").toString().trim().toLowerCase())
+            .filter((e: string) => !!e)
+        )
+      );
+      console.log(`[BULK] Unique emails from DB: ${targetEmails.length}`);
     }
 
-    if (!emailsData || emailsData.length === 0) {
-        console.warn("Nessuna email di contribuente trovata.");
-         return new Response(JSON.stringify({ message: "Nessuna email di contribuente trovata. Nessuna email inviata." }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    if (targetEmails.length === 0) {
+      return new Response(JSON.stringify({ message: "Nessun destinatario valido." }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Estrai le email e rimuovi i duplicati
-    uniqueEmails = Array.from(new Set(emailsData.map(item => item.contributor_email).filter(email => email))); // Filtra eventuali null/undefined
-    console.log(`Found ${uniqueEmails.length} unique emails.`);
+    // ---------- SEND EMAIL (use BCC for privacy) ----------
+    const senderEmail = `Ilaria & Andrea <${GMAIL_USER}>`;
+    console.log("Sending email to:", targetEmails.length, "recipients");
 
-    if (uniqueEmails.length === 0) {
-         console.warn("Dopo la rimozione dei duplicati, non ci sono email valide.");
-         return new Response(JSON.stringify({ message: "Nessuna email valida trovata dopo la rimozione dei duplicati. Nessuna email inviata." }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-    }
-
-
-    }
-
-    // --- Invia l'email a tutti gli indirizzi unici ---
-    const senderEmail = `Ilaria & Andrea <${GMAIL_USER}>`; // Email mittente con nome
-
-    console.log(`Attempting to send bulk email to ${uniqueEmails.length} recipients...`);
-    const mailInfo = await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: senderEmail,
-      to: uniqueEmails.join(','), // Invia a tutti come destinatari 'To' (o 'Bcc' per privacy)
-      subject: subject,
-      html: body, // Usiamo HTML per il corpo
-    });
-    console.log("Bulk email sent:", mailInfo.messageId);
-
-
-    return new Response(JSON.stringify({ message: `Email inviata con successo a ${uniqueEmails.length} destinatari!`, messageId: mailInfo.messageId }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      to: GMAIL_USER,          // mittente o casella di servizio
+      bcc: targetEmails,       // invio effettivo ai destinatari in BCC
+      subject,
+      html: body,
     });
 
+    console.log("Email sent. messageId:", info?.messageId);
+    return new Response(
+      JSON.stringify({ ok: true, message: `Email inviata a ${targetEmails.length} destinatari.`, messageId: info?.messageId }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e) {
-    console.error("Errore generico nella Edge Function 'send-bulk-email':", e);
-    return new Response(JSON.stringify({ error: e.message || "Errore interno del server durante l'invio dell'email." }), {
+    console.error("Unhandled error:", e);
+    return new Response(JSON.stringify({ error: e?.message || "Errore interno." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
