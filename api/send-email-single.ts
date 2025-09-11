@@ -17,9 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { subject, body, recipients } = (req.body || {}) as {
-      subject?: string;
-      body?: string;
-      recipients?: string[];
+      subject?: string; body?: string; recipients?: string[];
     };
 
     if (!subject || !body) {
