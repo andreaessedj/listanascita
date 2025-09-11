@@ -37,6 +37,26 @@ interface Contribution {
   created_at: string;
 }
 
+
+type ContributionRow = {
+  contributor_email: string | null;
+  contributor_name: string | null;
+  contributor_surname: string | null;
+};
+
+type SingleEmailResponse = {
+  ok?: boolean;
+  count?: number;
+  message?: string;
+  error?: string;
+};
+
+function msgFromUnknown(err: unknown): string {
+  if (err instanceof Error) return msgFromUnknown(err);
+  if (typeof err === 'string') return err;
+  try { return JSON.stringify(err); } catch { return String(err); }
+}
+
 const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
@@ -109,7 +129,7 @@ const Admin = () => {
       setTotalProducts(formattedProducts.length);
       setCompletedProducts(completed);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Errore caricamento prodotti (Admin):", err);
       setError("Impossibile caricare i prodotti.");
       showError("Impossibile caricare i prodotti.");
@@ -134,7 +154,7 @@ const Admin = () => {
       setSelectedProductContributions(data || []);
       setIsContributionsModalOpen(true); // Apri il modale dopo aver caricato i dati
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Errore caricamento contributi per prodotto ${productId}:`, err);
       setContributionsError("Impossibile caricare lo storico dei contributi.");
       showError("Impossibile caricare lo storico dei contributi.");
@@ -184,9 +204,9 @@ const Admin = () => {
 
       showSuccess(`Esportate ${uniqueEmails.length} email uniche.`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Errore durante l'esportazione delle email:", err);
-      showError(`Errore durante l'esportazione: ${err.message || 'Errore sconosciuto'}`);
+      showError(`Errore durante l'esportazione: ${msgFromUnknown(err) || 'Errore sconosciuto'}`);
     } finally {
       setIsExportingEmails(false);
     }
@@ -207,13 +227,13 @@ const Admin = () => {
         return;
       }
 
-      const mapped = (data || []).filter((r: any) => r.contributor_email).map((r: any) => ({
+      const mapped = (data || []).filter((r: ContributionRow) => r.contributor_email).map((r: ContributionRow) => ({
         email: String(r.contributor_email).trim(),
         name: [r.contributor_name, r.contributor_surname].filter(Boolean).join(' ').trim() || null
       }));
 
       setSingleRecipients(mapped);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Errore inatteso nel caricamento destinatari:", e);
       showError("Errore inatteso nel caricamento dei destinatari.");
     }
@@ -237,8 +257,8 @@ const Admin = () => {
         body: JSON.stringify({ subject, body, recipients }),
       });
 
-      let json: any = null;
-      try { json = await res.json(); } catch (_e) {}
+      let json: SingleEmailResponse | null = null;
+      try { json = await res.json(); } catch (_e) { json = null; }
 
       if (!res.ok) {
         const errMsg = (json && (json.error || json.message)) || res.statusText || 'Errore sconosciuto';
@@ -251,9 +271,9 @@ const Admin = () => {
       const message = json?.ok ? `Email inviata a ${count} destinatario/i.` : 'Email inviata.';
       showSuccess(message);
       setIsSingleEmailOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Errore generale durante l\'invio dell\'email singola:', err);
-      showError(`Si è verificato un errore inatteso: ${err?.message || 'Errore sconosciuto'}`);
+      showError(`Si è verificato un errore inatteso: ${msgFromUnknown(err) || 'Errore sconosciuto'}`);
     } finally {
       setIsSendingSingleEmail(false);
     }
@@ -286,9 +306,9 @@ const Admin = () => {
         handleCloseBulkEmailModal(); // Chiudi il modale solo in caso di successo
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Errore generale durante l'invio dell'email massiva:", err);
-      showError(`Si è verificato un errore inatteso: ${err.message || 'Errore sconosciuto'}`);
+      showError(`Si è verificato un errore inatteso: ${msgFromUnknown(err) || 'Errore sconosciuto'}`);
     } finally {
       setIsSendingBulkEmail(false);
     }
@@ -374,9 +394,9 @@ const Admin = () => {
       }
       await fetchProducts();
       handleCloseModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Errore salvataggio prodotto:", err);
-      showError(`Errore durante il salvataggio: ${err.message || 'Errore sconosciuto'}`);
+      showError(`Errore durante il salvataggio: ${msgFromUnknown(err) || 'Errore sconosciuto'}`);
     } finally {
       setFormLoading(false);
     }
@@ -392,9 +412,9 @@ const Admin = () => {
       if (deleteError) throw deleteError;
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
       showSuccess("Prodotto eliminato con successo!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Errore eliminazione prodotto:", err);
-      showError(`Errore durante l'eliminazione: ${err.message || 'Errore sconosciuto'}`);
+      showError(`Errore durante l'eliminazione: ${msgFromUnknown(err) || 'Errore sconosciuto'}`);
     }
   };
 
