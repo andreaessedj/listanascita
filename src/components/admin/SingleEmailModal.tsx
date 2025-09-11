@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -41,13 +41,28 @@ export default function SingleEmailModal({
     });
   }, [recipients]);
 
+  useEffect(() => {
+    if (!useCustom && !selectedEmail && uniqueRecipients.length > 0) {
+      setSelectedEmail(uniqueRecipients[0].email);
+    }
+  }, [useCustom, selectedEmail, uniqueRecipients]);
+
+
   const emailToSend = useCustom ? customEmail.trim() : selectedEmail.trim();
 
-  const canSend =
-    !!subject.trim() &&
-    !!body.trim() &&
-    !!emailToSend &&
-    /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(emailToSend);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+  const disabledReason = !subject.trim()
+    ? "Inserisci un oggetto"
+    : !body.trim()
+      ? "Inserisci un testo"
+      : !emailToSend
+        ? "Seleziona o inserisci un'email"
+        : !emailRegex.test(emailToSend)
+          ? "Email non valida"
+          : null;
+
+  const canSend = !isLoading && !disabledReason;
 
   const handleSubmit = async () => {
     await onSend({ subject: subject.trim(), body: body.trim(), recipients: [emailToSend] });
@@ -133,13 +148,16 @@ export default function SingleEmailModal({
           <DialogClose asChild>
             <Button >Annulla</Button>
           </DialogClose>
-          <Button onClick={handleSubmit} disabled={isLoading || !canSend}>
+          <Button onClick={handleSubmit} disabled={!canSend}>
             {isLoading ? "Invio…" : (
               <>
                 Invia Email
               </>
             )}
           </Button>
+          {disabledReason && (
+            <p className="text-sm text-muted-foreground mt-2">{disabledReason}</p>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
