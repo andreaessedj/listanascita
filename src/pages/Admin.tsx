@@ -234,7 +234,7 @@ const Admin = () => {
       const { data, error: functionError } = await supabase.functions.invoke('send-email-single', { body: { subject, body, recipients } });
 
       if (functionError) {
-        console.error('Errore chiamata Edge Function send-bulk-email (singolo):', functionError);
+        console.error('Errore chiamata Edge Function send-email-single:', functionError);
         showError(`Errore durante l'invio dell'email: ${functionError.message || 'Errore sconosciuto'}`);
       } else {
         // @ts-ignore
@@ -268,7 +268,7 @@ const Admin = () => {
       });
 
       if (functionError) {
-        console.error('Errore chiamata Edge Function send-bulk-email:', functionError);
+        console.error('Errore chiamata Edge Function send-email-single:', functionError);
         showError(`Errore durante l'invio dell'email: ${functionError.message || 'Errore sconosciuto'}`);
       } else {
         console.log('Chiamata Edge Function send-bulk-email completata:', data);
