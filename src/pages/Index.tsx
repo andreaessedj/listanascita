@@ -373,14 +373,7 @@ const Index = () => {
                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600 bg-[size:200%_auto] animate-gradient-shift">
                       {String(timeLeft.minutes).padStart(2, '0')}
                     </span>
-                    <div className="text-sm font-normal mt-1 text-gray-600">Minuti</div> {/* Aggiustato stile etichetta */}
-                 </div>
-                 <div className="flex flex-col items-center">
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-600 bg-[size:200%_auto] animate-gradient-shift">
-                      {String(timeLeft.seconds).padStart(2, '0')}
-                    </span>
-                    <div className="text-sm font-normal mt-1 text-gray-600">Secondi</div> {/* Aggiustato stile etichetta */}
-                 </div>
+                    
               </div>
             </>
           )}
