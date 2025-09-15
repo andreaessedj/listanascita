@@ -30,33 +30,36 @@ type SortDirection = 'asc' | 'desc';
 // Funzione per calcolare la differenza in mesi, giorni, ore, minuti, secondi
 const calculateTimeLeft = (targetDate: Date) => {
   const now = new Date();
-  let totalSeconds = differenceInSeconds(targetDate, now);
+  let diffMs = targetDate.getTime() - now.getTime();
 
-  if (totalSeconds <= 0) {
+  if (diffMs <= 0) {
     return { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isFinished: true };
   }
+
+  let totalSeconds = Math.floor(diffMs / 1000);
 
   const secondsInMinute = 60;
   const secondsInHour = secondsInMinute * 60;
   const secondsInDay = secondsInHour * 24;
-  const secondsInMonth = secondsInDay * 30.44; // Media giorni in un mese
+  const secondsInMonth = Math.floor(30.44 * secondsInDay); // media
 
   const months = Math.floor(totalSeconds / secondsInMonth);
   totalSeconds -= months * secondsInMonth;
 
   const days = Math.floor(totalSeconds / secondsInDay);
-  totalSeconds -= days / secondsInDay;
+  totalSeconds -= days * secondsInDay;
 
   const hours = Math.floor(totalSeconds / secondsInHour);
-  totalSeconds -= hours / secondsInHour;
+  totalSeconds -= hours * secondsInHour;
 
   const minutes = Math.floor(totalSeconds / secondsInMinute);
-  totalSeconds -= minutes / secondsInMinute;
+  totalSeconds -= minutes * secondsInMinute;
 
-  const seconds = Math.floor(totalSeconds);
+  const seconds = totalSeconds;
 
   return { months, days, hours, minutes, seconds, isFinished: false };
 };
+
 
 
 const Index = () => {
