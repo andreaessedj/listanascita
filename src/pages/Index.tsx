@@ -60,16 +60,6 @@ const calculateTimeLeft = (targetDate: Date) => {
   return { months, days, hours, minutes, seconds, isFinished: false };
 };
 
-// --- AGGIUNTA: funzione di shuffle (Fisher–Yates) ---
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-// --- FINE AGGIUNTA ---
 
 
 const Index = () => {
@@ -268,7 +258,7 @@ const Index = () => {
     const randomIndex = Math.floor(Math.random() * availableProducts.length);
     const suggested = availableProducts[randomIndex];
     setSuggestedProductId(suggested.id);
-  }, [sortedProducts]); // <-- AGGIORNATO: dipende direttamente da sortedProducts
+  }, [products, sortCriteria, sortDirection]); // Dipende da products, sortCriteria, sortDirection
 
 
   // Effetto per scrollare al regalo suggerito
@@ -313,17 +303,12 @@ const Index = () => {
          comparison = 0;
       }
 
+
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     return tempProducts;
   }, [products, sortCriteria, sortDirection]);
-
-  // --- AGGIUNTA: randomizzazione dell'array ordinato SOLO quando cambia ---
-  const randomizedProducts = useMemo(() => {
-    return shuffle(sortedProducts);
-  }, [sortedProducts]);
-  // --- FINE AGGIUNTA ---
 
 
   // URL corrente per la condivisione
@@ -465,7 +450,7 @@ const Index = () => {
         )}
         {!loading && !error && sortedProducts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {randomizedProducts.map((product, index) => ( // <-- USA l'array randomizzato
+            {sortedProducts.map((product, index) => (
               <div
                  key={product.id}
                  ref={(el) => { productRefs.current.set(product.id, el); }} // Assegna il ref
