@@ -266,8 +266,13 @@ const Index = () => {
     return tempProducts;
   }, [products, sortCriteria, sortDirection]);
 
-  // --- Randomizzazione dell'array ordinato SOLO quando cambia ---
-  const randomizedProducts = useMemo(() => shuffle(sortedProducts), [sortedProducts]);
+  // --- Randomizzazione mantenendo prima i prodotti disponibili ---
+  const randomizedProducts = useMemo(() => {
+    const availableProducts = sortedProducts.filter(product => product.contributedAmount < product.price);
+    const completedProducts = sortedProducts.filter(product => product.contributedAmount >= product.price);
+    return [...shuffle(availableProducts), ...shuffle(completedProducts)];
+  }, [sortedProducts]);
+
 
   // Funzione per suggerire un regalo casuale (ORA può dipendere da sortedProducts senza TDZ)
   const handleSuggestGift = useCallback(() => {
