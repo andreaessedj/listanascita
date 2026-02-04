@@ -93,8 +93,8 @@ const Index = () => {
   // Ref map per le card dei prodotti
   const productRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
-  // Data presunta del parto (24 Dicembre 2025)
-  const estimatedDueDate = new Date(2025, 11, 24, 0, 0, 0); // Mese 0 = Gennaio
+  // Data parto (24 Dicembre 2025)
+  const estimatedDueDate = new Date(2026, 0, 08, 0, 0, 0); // Mese 0 = Gennaio
 
   // Stato e useEffect per il countdown
   const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(estimatedDueDate));
@@ -311,13 +311,13 @@ const Index = () => {
         <div className={cn("mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-lg shadow", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.4s' }}>
           <Baby className="h-10 w-10 text-blue-500" />
           <p className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-pink-500">
-            Bambus
+            Nicholas Francesco
           </p>
         </div>
 
-        {/* Data Presunta Parto */}
+        {/* Data Parto */}
         <p className={cn("mt-4 text-xl font-semibold text-gray-700", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
-          Data Presunta Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
+          Data Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
         </p>
 
         {/* Countdown o Messaggio Finale */}
