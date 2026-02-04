@@ -93,8 +93,8 @@ const Index = () => {
   // Ref map per le card dei prodotti
   const productRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
-  // Data parto (24 Dicembre 2025)
-  const estimatedDueDate = new Date(2026, 0, 08, 0, 0, 0); // Mese 0 = Gennaio
+  // Data di nascita (8 Gennaio 2026)
+  const estimatedDueDate = new Date(2026, 0, 8, 0, 0, 0); // Mese 0 = Gennaio
 
   // Stato e useEffect per il countdown
   const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(estimatedDueDate));
@@ -315,9 +315,10 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Data Parto */}
+        {/* Data di nascita */}
         <p className={cn("mt-4 text-xl font-semibold text-gray-700", loading ? 'opacity-0' : 'animate-fade-in-up')} style={{ animationDelay: '0.5s' }}>
-          Data Parto: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
+          Nato il: {format(estimatedDueDate, 'dd/MM/yyyy', { locale: it })}
+
         </p>
 
         {/* Countdown o Messaggio Finale */}
